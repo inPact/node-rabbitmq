@@ -9,6 +9,10 @@ describe('messaging should: ', function () {
     before(async function () {
     });
 
+    after(async function () {
+        process.exit();
+    });
+
     it('send and retrieve via direct queue', async function () {
         let factory = new QueueFactory({
             url: 'amqp://localhost',

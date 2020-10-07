@@ -9,7 +9,7 @@
     "test": "mocha"
   },
   "dependencies": {
-    "@tabit/utils": "../utils",
+    "@tabit/utils": "^3.7.0",
     "amqplib": "^0.6.0",
     "bluebird": "^3.7.2",
     "chai": "^4.2.0",

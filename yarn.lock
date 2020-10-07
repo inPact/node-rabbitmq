@@ -2,8 +2,10 @@
 # yarn lockfile v1
 
 
-"@tabit/utils@../utils":
+"@tabit/utils@^3.7.0":
   version "3.7.0"
+  resolved "https://registry.yarnpkg.com/@tabit/utils/-/utils-3.7.0.tgz#bce840258e9e1819eafe42a7a7698e4bccc0b4d8"
+  integrity sha512-UZlU96KtYeOvPqwcdB2twxq/9hTuGGffaDRRqDQCKQOF77av150SnXQt8DLtNyuLQiTYj5B+BCvkdZ21sLauLA==
   dependencies:
     async-lock "0.3.9"
     bluebird "3.5.0"
