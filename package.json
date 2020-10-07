@@ -6,7 +6,7 @@
   "author": "joniba <jbenami1@gmail.com>",
   "license": "MIT",
   "scripts": {
-    "test": "mocha"
+    "test": "mocha --exit"
   },
   "dependencies": {
     "@tabit/utils": "^3.7.0",

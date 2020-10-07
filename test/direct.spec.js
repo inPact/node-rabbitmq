@@ -10,7 +10,7 @@ describe('messaging should: ', function () {
     });
 
     after(async function () {
-        process.exit();
+        // process.exit();
     });
 
     it('send and retrieve via direct queue', async function () {
