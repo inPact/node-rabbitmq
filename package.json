@@ -1,0 +1,19 @@
+{
+  "name": "node-rabbitmq",
+  "version": "0.0.1",
+  "main": "index.js",
+  "repository": "https://github.com/inPact/node-rabbitmq.git",
+  "author": "joniba <jbenami1@gmail.com>",
+  "license": "MIT",
+  "scripts": {
+    "test": "mocha"
+  },
+  "dependencies": {
+    "@tabit/utils": "../utils",
+    "amqplib": "^0.6.0",
+    "bluebird": "^3.7.2",
+    "chai": "^4.2.0",
+    "debug": "^4.2.0",
+    "lodash": "^4.17.20"
+  }
+}
