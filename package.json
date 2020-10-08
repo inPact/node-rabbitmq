@@ -26,5 +26,10 @@
   },
   "bugs": {
     "url": "https://github.com/inPact/node-rabbitmq/issues"
-  }
+  },
+  "description": "amqplib wrapper for Rabbit MQ",
+  "homepage": "https://github.com/inPact/node-rabbitmq#readme",
+  "keywords": [
+    "rabbitmq"
+  ]
 }

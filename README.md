@@ -1,2 +1,2 @@
-# utils
-general utility functions
+# amqplib wrapper for Rabbit MQ
+
