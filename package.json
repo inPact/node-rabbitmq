@@ -1,10 +1,13 @@
 {
-  "name": "rabbitmq",
-  "version": "0.1.0",
+  "name": "@tabit/rabbitmq",
+  "version": "1.0.0",
   "main": "index.js",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/inPact/node-rabbitmq.git"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "author": "joniba <jbenami1@gmail.com>",
   "license": "MIT",
