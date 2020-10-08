@@ -30,16 +30,6 @@ class Queue {
         channelManager.connectionManager.on('closed', this._restartConsumers.bind(this));
     }
 
-    static createCustom(config, section, queueName) {
-        let configReader = new ConfigReader(config);
-        if (queueName) {
-            let realConfig = configReader.getQueueConfig(queueName);
-            section = _.merge({}, realConfig, section);
-        }
-
-        return new Queue(config, section);
-    }
-
     /**
      *
      * @param entity {Object} - A JSON entity to be serialized and published.
@@ -85,9 +75,11 @@ class Queue {
                     if (!message)
                         return debug(`consumption cancelled by server`);
 
+                    debug(`received message on queue "${queue}", sending to handler...`);
+
                     Promise.resolve(handler(message.content.toString(), message.properties, message.fields))
                         .then(() => {
-                            verbose(`Distributed queue: acking 1 to queue "${queue}"`);
+                            verbose(`acking 1 to queue "${queue}"`);
                             return channel.ack(message);
                         })
                         .catch(e => {
@@ -109,7 +101,7 @@ class Queue {
 
                                     return this.publishTo(queue, message.content.toString(), properties)
                                         .then(() => channel.ack(message))
-                                        .then(() => debug(`Distributed queue: message requeued to queue "${queue}"`));
+                                        .then(() => debug(`message requeued to queue "${queue}"`));
                                 }
                             }
 
@@ -135,13 +127,13 @@ class Queue {
     _restartConsumers() {
         console.log(`=============================== _restartConsumers ===============================`);
         if (!this.consumers.length)
-            return debug(`Distributed queue: Not restarting consumers. No consumers in queue`);
+            return debug(`Not restarting consumers. No consumers in queue`);
 
-        debug(`Distributed queue: Restarting consumers. Consumers in queue: ${this.consumers.length}`);
+        debug(`Restarting consumers. Consumers in queue: ${this.consumers.length}`);
 
         const lockName = 'DistributedQueue._restartConsumers';
         if (lock.internal.isBusy(lockName))
-            return debug(`Distributed queue: Consumer restart aborted: lock busy`);
+            return debug(`Consumer restart aborted: lock busy`);
 
         return lock.acquire(lockName, () => {
             let consumers = _.clone(this.consumers);
@@ -175,6 +167,7 @@ Queue.prototype.publishTo = Promise.promisify(function (routingKey, message, opt
         options = _.assign({}, options, { persistent: true });
 
     this.channelManager.getPublishChannel().then(channel => {
+        debug(`publishing message to route or queue "${routingKey}"`);
         // TODO: Use confirm-callback instead of received + drain-event?
         let received = channel.publish(this.exchangeName, routingKey, new Buffer(message), options);
 

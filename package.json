@@ -26,6 +26,5 @@
   },
   "bugs": {
     "url": "https://github.com/inPact/node-rabbitmq/issues"
-  },
-  "homepage": "https://github.com/inPact/node-rabbitmq#readme",
+  }
 }
