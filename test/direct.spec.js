@@ -6,13 +6,6 @@ const exec = util.promisify(require('child_process').exec);
 
 
 describe('messaging should: ', function () {
-    before(async function () {
-    });
-
-    after(async function () {
-        // process.exit();
-    });
-
     it('send and retrieve via direct queue', async function () {
         let factory = new QueueFactory({
             url: 'amqp://localhost',
@@ -27,16 +20,20 @@ describe('messaging should: ', function () {
             let received;
             let queue = factory.createQueue('testBasic');
             queue.consume(data => received = JSON.parse(data));
+            await Promise.delay(1000);
             await queue.publish({ the: 'entity' });
 
             await Promise.delay(100);
-            should.exist(received);
+            should.exist(received, `message was not received`);
             received.should.deep.equal({ the: 'entity' });
         } finally {
             console.log(`=============================== CLEANUP ===============================`);
             let channel = await (await factory.getConnection()).createChannel();
+            console.log(`=============================== CLEANUP: deleting queues ===============================`);
             await channel.deleteQueue('test-basic');
+            console.log(`=============================== CLEANUP: deleting exchanges ===============================`);
             await channel.deleteExchange('test-basic');
+            console.log(`=============================== CLEANUP: finished ===============================`);
         }
     });
 
@@ -61,16 +58,19 @@ describe('messaging should: ', function () {
             factory.createQueue('testBasic', 'q2').consume(data => {
                 received.push(JSON.parse(data))
             });
+            await Promise.delay(1000);
             factory.createQueue('testBasic').publish({ the: 'entity' });
 
             await Promise.delay(100);
             received.length.should.equal(2);
         } finally {
-            console.log(`=============================== CLEANUP ===============================`);
             let channel = await (await factory.getConnection()).createChannel();
+            console.log(`=============================== CLEANUP: deleting queues ===============================`);
             await channel.deleteQueue('q1');
             await channel.deleteQueue('q2');
+            console.log(`=============================== CLEANUP: deleting exchanges ===============================`);
             await channel.deleteExchange('test-basic');
+            console.log(`=============================== CLEANUP: finished ===============================`);
         }
     });
 });
