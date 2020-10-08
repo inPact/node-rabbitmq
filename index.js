@@ -1,1 +1,1 @@
-module.exports = require('./src/queue_factory');
+module.exports = require('./src/amqp_adapter');

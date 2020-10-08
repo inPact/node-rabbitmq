@@ -4,7 +4,6 @@ const debug = require('debug')('tabit:infra:rabbit');
 const verbose = require('debug')('tabit:infra:rabbit:verbose');
 const utils = require('@tabit/utils');
 
-const ConfigReader = require('./config_reader');
 const ChannelManager = require('./channel_manager');
 const lock = utils.lock;
 
@@ -15,27 +14,22 @@ const lock = utils.lock;
  */
 class Queue {
     /**
-     * @param config {Object} - the entire rabbitMq configuration object
      * @param section {Object|String} - the queue configuration to assert, as a full configuration section object or just the
      * name of the section within {@param config} that should be looked up to retrive the configuration section.
      * @param [queueName] - the queue to publish to and consume from. If not provided, the {@param section.name} will be used.
      */
-    constructor(config, section, queueName) {
-        this.configReader = new ConfigReader(config);
-        if (typeof section === 'string')
-            section = this.configReader.getQueueConfig(section);
-
+    constructor(section, queueName, { logger = console, channelManager } = {}) {
         if (queueName)
             section.name = queueName;
 
-        this.logger = config.logger || console;
+        this.logger = logger;
         this.consumers = [];
         this.config = section;
         this.queueName = section.name;
-        this.channelManager = new ChannelManager(section, this._restartConsumers.bind(this), {
-            logger: this.logger
-        });
         this.exchangeName = _.get(section, 'exchange.name', '');
+
+        this.channelManager = channelManager;
+        channelManager.connectionManager.on('closed', this._restartConsumers.bind(this));
     }
 
     static createCustom(config, section, queueName) {

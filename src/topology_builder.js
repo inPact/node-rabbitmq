@@ -2,7 +2,7 @@ const _ = require('lodash');
 const Promise = require('bluebird');
 const utils = require('@tabit/utils');
 
-class RabbitTopologyBuilder {
+class TopologyBuilder {
     constructor(topology) {
         this.topology = topology;
     }
@@ -90,4 +90,4 @@ class RabbitTopologyBuilder {
     }
 }
 
-module.exports = RabbitTopologyBuilder;
+module.exports = TopologyBuilder;

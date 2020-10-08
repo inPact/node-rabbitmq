@@ -1,33 +1,43 @@
 const _ = require('lodash');
-const amqp = require('amqplib');
 const Promise = require('bluebird');
-const debug = require('debug')('tabit:infra:rabbit');
-
 const utils = require('@tabit/utils');
+
 const TopologyBuilder = require('./topology_builder');
-const lock = utils.lock;
+const ConnectionManager = require('./connection_manager');
 const Retry = utils.Retry;
 
-let connections = 0;
-
-class RabbitChannelManager {
+class ChannelManager {
     /**
      * @param config - the queue configuration to assert.
      * @param [queueName] - the queue to publish to and consume from. If not provided, the @config.name will be used.
-     * @param onReconnect
      * @param logger
      */
-    constructor(config, onReconnect, { logger = console } = {}) {
+    constructor(config, { onReconnect, logger = console, topologyBuilder, connectionManager } = {}) {
         this.config = config;
-        this.topologyBuilder = new TopologyBuilder(config);
+        this.connectionManager = connectionManager || new ConnectionManager(config, { logger });
+        this.topologyBuilder = topologyBuilder || new TopologyBuilder(config);
         this.channels = { pub: null, sub: null };
-        this.onReconnect = onReconnect;
         this.logger = logger;
 
-        // if (!config.name &&
-        //     !(config.exchange && config.exchange.name))
-        //     throw new Error('Invalid queue configuration: a server-named queue must have a name. Queue config: ' +
-        //                     JSON.stringify(config, null, 2));
+        if (onReconnect)
+            this.connectionManager.onClosed(onReconnect);
+    }
+
+    /**
+     *
+     * @param section
+     * @returns {ChannelManager}
+     */
+    forSection(section, { onReconnect } = {}) {
+        let channelManager = new ChannelManager(section, {
+            onReconnect,
+            logger: this.logger,
+            connectionManager: this.connectionManager,
+            topologyBuilder: new TopologyBuilder(section)
+        });
+
+        channelManager.channels = this.channels;
+        return channelManager;
     }
 
     getPublishChannel() {
@@ -53,11 +63,7 @@ class RabbitChannelManager {
     }
 
     getConnection(config = this.config) {
-        return lock.getWithDoubleCheck(
-            () => this.connection,
-            'Queue.getConnection',
-            () => this._connect(config),
-            connection => this.connection = connection);
+        return this.connectionManager.getConnection(config);
     }
 
     /**
@@ -138,36 +144,6 @@ class RabbitChannelManager {
             this._clearChannel(channel);
         })
     }
-
-    /** @private */
-    _connect(config = this.config) {
-        let options = config.heartbeat ? '?heartbeat=' + config.heartbeat : '';
-        let url = (config.url || 'amqp://localhost') + options;
-        debug(`Distributed queue: connecting to ${url}...`);
-
-        return amqp.connect(url)
-            .then(connection => {
-                this.logger.info(`Distributed queue: connected to ${url}`);
-                this.connection = connection;
-                debug(`Distributed queue: ${++connections} open connections`);
-
-                connection.on('close', () => {
-                    this.logger.warn('Distributed queue: connection closed');
-                    debug(`Distributed queue: ${--connections} open connections`);
-                    delete this.connection;
-                    this.channels = {};
-
-                    if (this.onReconnect)
-                        this.onReconnect();
-                });
-
-                connection.on('error', e => {
-                    this.logger.error('Distributed queue: connection error: ' + utils.errorToString(e));
-                });
-
-                return connection;
-            });
-    }
 }
 
-module.exports = RabbitChannelManager;
+module.exports = ChannelManager;
