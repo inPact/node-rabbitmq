@@ -1,9 +1,6 @@
 const Promise = require('bluebird');
 const should = require('chai').should();
 const QueueAdapter = require('..');
-const util = require('util');
-const exec = util.promisify(require('child_process').exec);
-
 
 describe('messaging should: ', function () {
     it('send and retrieve via direct queue', async function () {
@@ -19,8 +16,7 @@ describe('messaging should: ', function () {
         try {
             let received;
             let queue = adapter.createQueue('testBasic');
-            queue.consume(data => received = JSON.parse(data));
-            await Promise.delay(1000);
+            await queue.consume(data => received = JSON.parse(data));
             await queue.publish({ the: 'entity' });
 
             await Promise.delay(100);
@@ -52,14 +48,13 @@ describe('messaging should: ', function () {
         });
         try {
             let received = [];
-            adapter.createQueue('testBasic', 'q1').consume(data => {
+            await adapter.createQueue('testBasic', 'q1').consume(data => {
                 received.push(JSON.parse(data))
             });
-            adapter.createQueue('testBasic', 'q2').consume(data => {
+            await adapter.createQueue('testBasic', 'q2').consume(data => {
                 received.push(JSON.parse(data))
             });
-            await Promise.delay(1000);
-            adapter.createQueue('testBasic').publish({ the: 'entity' });
+            await adapter.createQueue('testBasic').publish({ the: 'entity' });
 
             await Promise.delay(100);
             received.length.should.equal(2);
@@ -89,8 +84,7 @@ describe('messaging should: ', function () {
         });
         try {
             let received = [];
-            adapter.createQueue('test', 'q1').consume(data => received.push(JSON.parse(data)));
-            await Promise.delay(1000); // wait for topology to finish building
+            await adapter.createQueue('test', 'q1').consume(data => received.push(JSON.parse(data)));
             let pubQueue = adapter.createQueue('test');
             await pubQueue.publish({ the: 'entity' });
 

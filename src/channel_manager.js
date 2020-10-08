@@ -1,5 +1,4 @@
 const _ = require('lodash');
-const Promise = require('bluebird');
 const utils = require('@tabit/utils');
 
 const TopologyBuilder = require('./topology_builder');
@@ -12,36 +11,30 @@ class ChannelManager {
      * @param [queueName] - the queue to publish to and consume from. If not provided, the @config.name will be used.
      * @param logger
      */
-    constructor(config, { onReconnect, logger = console, topologyBuilder, connectionManager } = {}) {
+    constructor(config, { logger = console, topologyBuilder, connectionManager } = {}) {
         this.config = config;
         this.connectionManager = connectionManager || new ConnectionManager(config, { logger });
         this.topologyBuilder = topologyBuilder || new TopologyBuilder(config);
         this.channels = { pub: null, sub: null };
         this.logger = logger;
-
-        if (onReconnect)
-            this.connectionManager.onClosed(onReconnect);
     }
 
     /**
      *
      * @param section
+     * @param onReconnect
      * @returns {ChannelManager}
      */
     forSection(section, { onReconnect } = {}) {
-        let channelManager = new ChannelManager(section, {
-            onReconnect,
+        return new ChannelManager(section, {
             logger: this.logger,
             connectionManager: this.connectionManager,
             topologyBuilder: new TopologyBuilder(section)
         });
-
-        channelManager.channels = this.channels;
-        return channelManager;
     }
 
-    getPublishChannel() {
-        return Promise.resolve(this.channels.pub || this._createChannel('pub'));
+    async getPublishChannel() {
+        return await (this.channels.pub || this._createChannel('pub'));
     }
 
     /**
@@ -52,12 +45,9 @@ class ChannelManager {
      * when this instance was created.
      * @returns {*}
      */
-    getConsumeChannel(topic, options) {
+    async getConsumeChannel(topic, options) {
         if (!topic)
-            return Promise.resolve(this.channels.sub || this._createChannel('sub'));
-
-        if (options.name)
-            return Promise.resolve(this.channels[options.name] || this._createTopicChannel(topic, options));
+            return await (this.channels.sub || this._createChannel('sub'));
 
         return this._createTopicChannel(topic, options);
     }
@@ -101,18 +91,19 @@ class ChannelManager {
      * @returns {*}
      * @private
      */
-    _createChannel(channelType, options) {
+    async _createChannel(channelType, options) {
         if (_.isObject(channelType)) {
             options = channelType;
             channelType = undefined;
         }
 
-        return new Retry(
+        return await new Retry(
             () => this.getConnection()
                 .then(conn => channelType === 'pub' ? conn.createConfirmChannel() : conn.createChannel())
-                .then(channel => {
+                .then(async channel => {
                     this._manageChannel(channel, channelType);
-                    return this.topologyBuilder.assertTopology(channel, options).return(channel);
+                    await this.topologyBuilder.assertTopology(channel, options);
+                    return channel;
                 }),
             { delay: 1000, maxTime: Infinity, title: 'Distributed queue' })
             .execute();

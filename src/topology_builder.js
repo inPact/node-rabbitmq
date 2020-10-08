@@ -30,17 +30,16 @@ class TopologyBuilder {
             .then(() => this.assertExchangeAndQueue(channel, topology, topology.exchange));
     }
 
-    assertExchangeAndQueue(channel, queueConfig = this.topology, exchangeConfig = this.topology.exchange) {
-        return utils.promiseIf(
-            () => exchangeConfig && exchangeConfig.name,
-            () => channel.assertExchange(exchangeConfig.name, exchangeConfig.type))
-            .then(() => {
-                if (_.get(exchangeConfig, 'type') === 'topic' ||
-                    _.get(exchangeConfig, 'bindQueue') === false)
-                    return;
+    async assertExchangeAndQueue(channel, queueConfig = this.topology, exchangeConfig = this.topology.exchange) {
+        if (exchangeConfig && exchangeConfig.name) {
+            await channel.assertExchange(exchangeConfig.name, exchangeConfig.type);
+        }
 
-                return this.assertQueue(channel, '', queueConfig.name, {}, queueConfig, exchangeConfig);
-            })
+        if (_.get(exchangeConfig, 'type') === 'topic' ||
+            _.get(exchangeConfig, 'bindQueue') === false)
+            return;
+
+        return await this.assertQueue(channel, '', queueConfig.name, {}, queueConfig, exchangeConfig);
     }
 
     /**
@@ -79,7 +78,7 @@ class TopologyBuilder {
             });
     }
 
-     assertDeadLetterExchange(channel, config) {
+    assertDeadLetterExchange(channel, config) {
         return utils.promiseIf(
             () => config.deadLetter,
             () => this.assertDeadLetterExchange(channel, config.deadLetter))

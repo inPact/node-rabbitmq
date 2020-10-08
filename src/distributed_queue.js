@@ -3,8 +3,6 @@ const Promise = require('bluebird');
 const debug = require('debug')('tabit:infra:rabbit');
 const verbose = require('debug')('tabit:infra:rabbit:verbose');
 const utils = require('@tabit/utils');
-
-const ChannelManager = require('./channel_manager');
 const lock = utils.lock;
 
 /**
@@ -125,15 +123,17 @@ class Queue {
                                              `topic "${topic}", queue "${queue}"`);
 
                         else if (queue)
-                            this.logger.info(`Distributed queue: Consuming messages from queue "${queue}"`)
+                            this.logger.info(`Distributed queue: Consuming messages from queue "${queue}"`);
 
-                        debug(`Distributed queue "${queue}" options: ${JSON.stringify(consumeOptions)}`);
+                        if (debug.enabled)
+                            debug(`Distributed queue "${queue}" options: `, _.omit(consumeOptions, 'logger'));
                     })
                     .catch(e => this.logger.error('Distributed queue: Consume failed: ' + e.stack));
             });
     }
 
     _restartConsumers() {
+        console.log(`=============================== _restartConsumers ===============================`);
         if (!this.consumers.length)
             return debug(`Distributed queue: Not restarting consumers. No consumers in queue`);
 
