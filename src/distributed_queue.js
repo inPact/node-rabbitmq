@@ -16,7 +16,7 @@ class Queue {
      * name of the section within {@param config} that should be looked up to retrive the configuration section.
      * @param [queueName] - the queue to publish to and consume from. If not provided, the {@param section.name} will be used.
      */
-    constructor(section, queueName, { logger = console, channelManager } = {}) {
+    constructor(section, { queueName, logger = console, channelManager } = {}) {
         if (queueName)
             section.name = queueName;
 

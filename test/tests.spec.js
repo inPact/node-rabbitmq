@@ -46,10 +46,10 @@ describe('messaging: ', function () {
             });
             try {
                 let received = [];
-                await broker.createQueue('testBasic', 'q1').consume(data => {
+                await broker.createQueue('testBasic', { queueName: 'q1' }).consume(data => {
                     received.push(JSON.parse(data))
                 });
-                await broker.createQueue('testBasic', 'q2').consume(data => {
+                await broker.createQueue('testBasic', { queueName: 'q2' }).consume(data => {
                     received.push(JSON.parse(data))
                 });
                 await broker.createQueue('testBasic').publish({ the: 'entity' });
@@ -131,7 +131,8 @@ describe('messaging: ', function () {
                 }
             });
             try {
-                broker.createQueue('test', 'custom-name', {
+                broker.createQueue('test', {
+                    queueName: 'custom-name',
                     sectionOverride: {
                         exchange: {
                             name: 'custom-exchange-name'
@@ -141,7 +142,7 @@ describe('messaging: ', function () {
 
                 let response = await superagent.get(`${API_URL}/exchanges`).auth('guest', 'guest');
                 let exchanges = response.body.map(x => x.name);
-                exchanges.should.include('custom-exchange-name');
+                exchanges.should.include('custom-exchange-name', exchanges);
                 exchanges.should.not.include('test');
             } finally {
                 await cleanup(broker, ['custom-name', 'test'], 'custom-exchange-name', 'test');

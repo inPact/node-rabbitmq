@@ -19,14 +19,15 @@ module.exports = class {
         });
     }
 
-    createQueue(section, queueName, { sectionOverride } = {}) {
+    createQueue(section, { queueName, sectionOverride } = {}) {
         if (typeof section === 'string')
             section = this.configReader.getQueueConfig(section);
 
         if (sectionOverride)
             section = _.merge({}, section, sectionOverride);
 
-        return new Queue(section, queueName, {
+        return new Queue(section, {
+            queueName,
             logger: this.logger,
             channelManager: this.channelManager.forSection(section)
         });
