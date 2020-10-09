@@ -1,3 +1,4 @@
+const _ = require('lodash');
 const Queue = require('./distributed_queue');
 const ChannelManager = require('./channel_manager');
 const ConnectionManager = require('./connection_manager');
@@ -18,9 +19,12 @@ module.exports = class {
         });
     }
 
-    createQueue(section, queueName) {
+    createQueue(section, queueName, { sectionOverride } = {}) {
         if (typeof section === 'string')
             section = this.configReader.getQueueConfig(section);
+
+        if (sectionOverride)
+            section = _.merge({}, section, sectionOverride);
 
         return new Queue(section, queueName, {
             logger: this.logger,

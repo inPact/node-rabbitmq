@@ -1,1 +1,1 @@
-module.exports = require('./src/amqp_adapter');
+module.exports = require('./src/broker');
