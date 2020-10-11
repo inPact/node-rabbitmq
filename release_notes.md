@@ -1,3 +1,6 @@
+# 2.0.0
+* added request-reply support using rabbitmq direct-reply-to queues
+
 ## 1.2.0
 * breaking change: change createQueue signature to make queueName optional
 

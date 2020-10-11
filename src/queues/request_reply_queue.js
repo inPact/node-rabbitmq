@@ -1,10 +1,9 @@
 const _ = require('lodash');
 const Promise = require('bluebird');
 const debug = require('debug')('tabit:infra:rabbit');
-const verbose = require('debug')('tabit:infra:rabbit:verbose');
 const uuid = require('uuid');
 const EventEmitter = require('events');
-const DistributedQueue = require('../distributed_queue');
+const DistributedQueue = require('./distributed_queue');
 const REPLY_TO_QUEUE = 'amq.rabbitmq.reply-to';
 
 let registeredForReplies;
