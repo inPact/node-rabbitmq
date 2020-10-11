@@ -11,4 +11,5 @@ addons:
       - rabbitmq-server
 script:
   - sudo rabbitmq-plugins enable rabbitmq_management
+  #- sleep 2 # wait for management plugin to properly start up
   - yarn test

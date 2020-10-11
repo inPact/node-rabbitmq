@@ -23,7 +23,6 @@ class Queue {
         this.logger = logger;
         this.consumers = [];
         this.config = section;
-        this.queueName = section.name;
         this.exchangeName = _.get(section, 'exchange.name', '');
 
         this.channelManager = channelManager;
@@ -37,7 +36,7 @@ class Queue {
      * @returns {Promise} - fulfilled once the publish completes.
      */
     publish(entity, options = {}) {
-        return this.publishTo(this.queueName, JSON.stringify(entity), options);
+        return this.publishTo(this.config.name, JSON.stringify(entity), options);
     }
 
     /**
@@ -46,6 +45,7 @@ class Queue {
      * 1. the received message
      * 2. additional properties associated with the received messages
      * @param topic
+     * @param channel - override default amqplib channel
      * @param [options] {Object}
      * @param [options.name] {String}
      * @param [options.limit] {Number} - the prefetch to use vis-a-vis rabbit MQ
@@ -56,76 +56,81 @@ class Queue {
      * @param [options.override] {Object} - any desired overrides of the default configuration that was provided
      * when this instance was created.
      */
-    consume(handler, topic, options) {
+    async consume(handler, topic, { channel, ...options } = {}) {
         if (_.isObject(topic)) {
-            options = topic;
+            ({ channel, ...options } = topic);
             topic = undefined;
         }
 
         this.consumers.unshift({ handler, topic, options });
 
-        return this.channelManager.getConsumeChannel(topic, options)
-            .then(channel => {
-                let consumeOptions = _.merge({}, this.config, options);
-                let queue = this.queueName || channel.__queue;
+        if (!channel)
+            channel = await this.channelManager.getConsumeChannel(topic, options)
 
-                channel.prefetch(consumeOptions.limit || 100);
+        let consumeOptions = _.merge({}, this.config, options);
+        let queue = consumeOptions.name || channel.__queue;
 
-                return channel.consume(queue, message => {
-                    if (!message)
-                        return debug(`consumption cancelled by server`);
+        channel.prefetch(consumeOptions.limit || 100);
 
-                    debug(`received message on queue "${queue}", sending to handler...`);
+        try {
+            await channel.consume(queue, async message => {
+                if (!message)
+                    return debug(`consumption cancelled by server`);
 
-                    Promise.resolve(handler(message.content.toString(), message.properties, message.fields))
-                        .then(() => {
-                            verbose(`acking 1 to queue "${queue}"`);
-                            return channel.ack(message);
-                        })
-                        .catch(e => {
-                            let deliveryAttempts = message.properties.headers && message.properties.headers['x-delivery-attempts'] || 1;
-                            let append = '';
+                debug(`received message on queue "${queue}", sending to handler...`);
 
-                            if (!e.handled)
-                                append = ` with error ${utils.errorToString(e)}`;
+                try {
+                    await handler(message.content.toString(), message.properties, message.fields, message);
+                    if (!options.noAck) {
+                        verbose(`acking 1 to queue "${queue}"`);
+                        return channel.ack(message);
+                    }
+                } catch (e) {
+                    try {
+                        let deliveryAttempts = message.properties.headers && message.properties.headers['x-delivery-attempts'] || 1;
+                        let append = '';
 
-                            this.logger.warn(`Distributed queue: delivery attempt #${deliveryAttempts} to queue "${queue}" ` +
-                                             `failed${append}`);
+                        if (!e.handled)
+                            append = ` with error ${utils.errorToString(e)}`;
 
-                            if (consumeOptions.requeueToTail) {
-                                if (!consumeOptions.maxRetries || deliveryAttempts < consumeOptions.maxRetries) {
-                                    message.properties.headers = _.omit(message.properties.headers, 'x-death');
-                                    let properties = _.merge(message.properties, {
-                                        headers: { 'x-delivery-attempts': ++deliveryAttempts }
-                                    });
+                        this.logger.warn(`Distributed queue: delivery attempt #${deliveryAttempts} to queue "${queue}" ` +
+                                         `failed${append}`);
 
-                                    return this.publishTo(queue, message.content.toString(), properties)
-                                        .then(() => channel.ack(message))
-                                        .then(() => debug(`message requeued to queue "${queue}"`));
-                                }
+                        if (consumeOptions.requeueToTail) {
+                            if (!consumeOptions.maxRetries || deliveryAttempts < consumeOptions.maxRetries) {
+                                message.properties.headers = _.omit(message.properties.headers, 'x-death');
+                                let properties = _.merge(message.properties, {
+                                    headers: { 'x-delivery-attempts': ++deliveryAttempts }
+                                });
+
+                                return this.publishTo(queue, message.content.toString(), properties)
+                                    .then(() => channel.ack(message))
+                                    .then(() => debug(`message requeued to queue "${queue}"`));
                             }
+                        }
 
-                            return channel.nack(message, false, false)
-                        })
-                        .catch(e => this.logger.error('Distributed queue: Consume error handling failed: ' + e.stack))
-                })
-                    .then(() => {
-                        if (this.exchangeName)
-                            this.logger.info(`Distributed queue: Consuming messages from exchange "${this.exchangeName}", ` +
-                                             `topic "${topic}", queue "${queue}"`);
+                        return channel.nack(message, false, false)
+                    } catch (e) {
+                        this.logger.error('Distributed queue: Consume error handling failed: ' + e.stack)
+                    }
+                }
+            }, consumeOptions);
 
-                        else if (queue)
-                            this.logger.info(`Distributed queue: Consuming messages from queue "${queue}"`);
+            if (this.exchangeName)
+                this.logger.info(`Distributed queue: Consuming messages from exchange "${this.exchangeName}", ` +
+                                 `topic "${topic}", queue "${queue}"`);
 
-                        if (debug.enabled)
-                            debug(`Distributed queue "${queue}" options: `, _.omit(consumeOptions, 'logger'));
-                    })
-                    .catch(e => this.logger.error('Distributed queue: Consume failed: ' + e.stack));
-            });
+            else if (queue)
+                this.logger.info(`Distributed queue: Consuming messages from queue "${queue}"`);
+
+            if (debug.enabled)
+                debug(`Distributed queue "${queue}" options: `, _.omit(consumeOptions, 'logger'));
+        } catch (e) {
+            this.logger.error('Distributed queue: Consume failed: ' + e.stack);
+        }
     }
 
     _restartConsumers() {
-        console.log(`=============================== _restartConsumers ===============================`);
         if (!this.consumers.length)
             return debug(`Not restarting consumers. No consumers in queue`);
 
@@ -148,16 +153,18 @@ class Queue {
 }
 
 /**
- * @param routingKey {string} - the name of the queue to publish to
+ * @param routingKey {string} - the name of the queue or topic to publish to
  * @param message {string} - the message to publish
+ * @param channel - override default amqplib channel
+ * @param useBasic {Boolean}
  * @param [options] - the options to attach to the published message
  * @param [options.persistent] - whether published messages should be persistent or not;
  * defaults to true if not specified.
  * @param done - for internal use
  * @returns {*}
  */
-Queue.prototype.publishTo = Promise.promisify(function (routingKey, message, options, done) {
-    routingKey = routingKey || this.queueName || '';
+Queue.prototype.publishTo = Promise.promisify(async function (routingKey, message, { channel, useBasic, ...options } = {}, done) {
+    routingKey = routingKey || this.config.name || '';
     if (arguments.length < 4) {
         done = options;
         options = {};
@@ -166,19 +173,22 @@ Queue.prototype.publishTo = Promise.promisify(function (routingKey, message, opt
     if (!options || !_.isBoolean(options.persistent))
         options = _.assign({}, options, { persistent: true });
 
-    this.channelManager.getPublishChannel().then(channel => {
-        debug(`publishing message to route or queue "${routingKey}"`);
-        // TODO: Use confirm-callback instead of received + drain-event?
-        let received = channel.publish(this.exchangeName, routingKey, new Buffer(message), options);
+    if (!channel)
+        channel = await this.channelManager.getPublishChannel()
 
-        if (received)
-            return done();
+    debug(`publishing message to route or queue "${routingKey}"`);
+    // TODO: Use confirm-callback instead of received + drain-event?
+    let received = useBasic
+        ? channel.sendToQueue(routingKey, new Buffer(message), options)
+        : channel.publish(this.exchangeName, routingKey, new Buffer(message), options);
 
-        this.logger.info(`Distributed queue: publish channel blocking, waiting for drain event.`);
-        channel.once('drain', () => {
-            this.logger.info(`Distributed queue: drain event received, continuing...`);
-            done();
-        })
+    if (received)
+        return done();
+
+    this.logger.info(`Distributed queue: publish channel blocking, waiting for drain event.`);
+    channel.once('drain', () => {
+        this.logger.info(`Distributed queue: drain event received, continuing...`);
+        done();
     })
 });
 

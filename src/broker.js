@@ -1,9 +1,9 @@
 const _ = require('lodash');
-const Queue = require('./distributed_queue');
 const ChannelManager = require('./channel_manager');
 const ConnectionManager = require('./connection_manager');
 const TopologyBuilder = require('./topology_builder');
 const ConfigReader = require('./config_reader');
+const queueFactory = require('./queues');
 
 module.exports = class {
     constructor(config) {
@@ -26,7 +26,7 @@ module.exports = class {
         if (sectionOverride)
             section = _.merge({}, section, sectionOverride);
 
-        return new Queue(section, {
+        return queueFactory.create(section, {
             queueName,
             logger: this.logger,
             channelManager: this.channelManager.forSection(section)

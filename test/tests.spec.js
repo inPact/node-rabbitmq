@@ -93,7 +93,7 @@ describe('messaging: ', function () {
             }
         });
 
-        it.skip('send and receive via direct reply-to queue', async function () {
+        it('send and receive via direct reply-to queue', async function () {
             let broker = new Broker({
                 url,
                 queues: {
@@ -107,22 +107,33 @@ describe('messaging: ', function () {
             try {
                 let serverReceived;
                 let server = broker.createQueue('testReplyTo');
-                await server.consume((data, props) => {
+                console.log(`======================================= server: consuming from test-reply-to =======================================`);
+                await server.consume(async (data, props) => {
+                    console.log(`======================================= server: received message =======================================`);
                     serverReceived = JSON.parse(data);
                     should.exist(props.replyTo)
+                    return { ok: 1 };
                 });
 
 
-
-                await server.publish({ the: 'entity' });
-
+                let clientReceived;
+                let client = broker.createQueue('testReplyTo');
+                console.log(`======================================= client: PUBLISHING to test-reply-to =======================================`);
+                await client.publishAndWait({ the: 'entity' }, data => {
+                    console.log(`======================================= client: RECEIVED response =======================================`);
+                    clientReceived = JSON.parse(data)
+                });
                 await Promise.delay(100);
+
                 should.exist(serverReceived, `message was not received`);
+                should.exist(clientReceived, `message was not received`);
                 serverReceived.should.deep.equal({ the: 'entity' });
+                clientReceived.should.deep.equal({ ok: 1 });
             } finally {
                 await cleanup(broker, 'test-reply-to', 'test-reply-to');
             }
-        });``
+        });
+        ``
     });
 
     describe('topology should: ', function () {
@@ -137,7 +148,7 @@ describe('messaging: ', function () {
                 }
             });
             try {
-                broker.createQueue('test', {
+                await broker.createQueue('test', {
                     queueName: 'custom-name',
                     sectionOverride: {
                         exchange: {
@@ -146,7 +157,7 @@ describe('messaging: ', function () {
                     }
                 }).consume(x => x);
 
-                await Promise.delay(2000);
+                // await Promise.delay(200); // on travis-ci managment plugin has some delay before updating
                 let response = await superagent.get(`${API_URL}/exchanges`).auth('guest', 'guest');
                 let exchanges = response.body.map(x => x.name);
                 exchanges.should.include('custom-exchange-name', exchanges);
