@@ -93,7 +93,7 @@ describe('messaging: ', function () {
             }
         });
 
-        it('send and receive via direct reply-to queue', async function () {
+        it.skip('send and receive via direct reply-to queue', async function () {
             let broker = new Broker({
                 url,
                 queues: {
@@ -105,18 +105,24 @@ describe('messaging: ', function () {
                 }
             });
             try {
-                let received;
+                let serverReceived;
                 let server = broker.createQueue('testReplyTo');
-                await server.consume(data => received = JSON.parse(data));
+                await server.consume((data, props) => {
+                    serverReceived = JSON.parse(data);
+                    should.exist(props.replyTo)
+                });
+
+
+
                 await server.publish({ the: 'entity' });
 
                 await Promise.delay(100);
-                should.exist(received, `message was not received`);
-                received.should.deep.equal({ the: 'entity' });
+                should.exist(serverReceived, `message was not received`);
+                serverReceived.should.deep.equal({ the: 'entity' });
             } finally {
                 await cleanup(broker, 'test-reply-to', 'test-reply-to');
             }
-        });
+        });``
     });
 
     describe('topology should: ', function () {
@@ -140,6 +146,7 @@ describe('messaging: ', function () {
                     }
                 }).consume(x => x);
 
+                await Promise.delay(2000);
                 let response = await superagent.get(`${API_URL}/exchanges`).auth('guest', 'guest');
                 let exchanges = response.body.map(x => x.name);
                 exchanges.should.include('custom-exchange-name', exchanges);
