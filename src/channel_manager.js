@@ -22,10 +22,9 @@ class ChannelManager {
     /**
      *
      * @param section
-     * @param onReconnect
      * @returns {ChannelManager}
      */
-    forSection(section, { onReconnect } = {}) {
+    forSection(section) {
         return new ChannelManager(section, {
             logger: this.logger,
             connectionManager: this.connectionManager,
@@ -123,7 +122,7 @@ class ChannelManager {
         }
 
         channel.once('close', () => {
-            this.logger.warn('Distributed queue: channel closed');
+            this.logger.warn(`Distributed queue: channel "${descriptor(channel)}" closed`);
             this._clearChannel(channel);
         });
 
@@ -131,10 +130,21 @@ class ChannelManager {
             let append = e.stackAtStateChange
                 ? '\r\n\tStack at state change: ' + e.stackAtStateChange
                 : '';
-            this.logger.error('Distributed queue error: ' + utils.errorToString(e) + append);
+            this.logger.error(`Distributed queue error in channel "${descriptor(channel)}": ` + utils.errorToString(e) + append);
             this._clearChannel(channel);
         })
     }
+}
+
+function descriptor(channel) {
+    let parts = [];
+    if (channel.__name || channel.__queue)
+        parts.push(channel.__name || channel.__queue);
+
+    if (channel.__type)
+        parts.push(channel.__type);
+
+    return `${_.join(parts, ':')}(${channel.ch})`;
 }
 
 module.exports = ChannelManager;

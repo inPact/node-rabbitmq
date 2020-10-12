@@ -6,8 +6,6 @@ const EventEmitter = require('events');
 const DistributedQueue = require('./distributed_queue');
 const REPLY_TO_QUEUE = 'amq.rabbitmq.reply-to';
 
-let registeredForReplies;
-
 /**
  * Encapsulates a rabbitmq direct reply-to queue.
  * @type {Queue}
@@ -25,8 +23,8 @@ module.exports = class RequestReplyQueue extends DistributedQueue {
     }
 
     async _listenToReplies() {
-        if (!registeredForReplies) {
-            await super.consume(
+        if (!this.listenForResponses) {
+            this.listenForResponses = super.consume(
                 (data, props) => {
                     debug(`received response on reply-queue "${props.correlationId}", sending to handler...`);
                     this.responseEmitter.emit(props.correlationId, data);
@@ -37,12 +35,10 @@ module.exports = class RequestReplyQueue extends DistributedQueue {
                     channel: await this.channelManager.getPublishChannel()
                 },
             );
-
-            registeredForReplies = true;
-            debug(`registered for responses on direct reply-to queue`);
         }
 
-        return registeredForReplies;
+        await this.listenForResponses;
+        debug(`registered for responses on direct reply-to queue`);
     }
 
     async consume(handler, topic, options) {

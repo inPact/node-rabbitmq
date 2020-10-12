@@ -113,7 +113,9 @@ describe('messaging: ', function () {
                 await cleanup(broker, 'test', 'test');
             }
         });
+    });
 
+    describe('request-reply should: ', function () {
         it('send and receive via direct reply-to queue', async function () {
             let broker = new Broker({
                 url,
@@ -143,10 +145,38 @@ describe('messaging: ', function () {
                 should.exist(serverReceived, `message was not received`);
                 serverReceived.should.deep.equal({ the: 'entity' });
                 response.should.deep.equal({ ok: 1 });
+                console.log(`=============================== SUCCESS ===============================`);
             } finally {
                 await cleanup(broker, [], 'test-reply-to');
             }
         });
+
+        it('publish multiple requests in parallel', async function () {
+            let broker = new Broker({
+                url,
+                queues: {
+                    testReplyTo: {
+                        name: 'test-reply-to',
+                        requestReply: true
+                    }
+                }
+            });
+            try {
+                let server = broker.createQueue('testReplyTo');
+                await server.consume(async (data, props) => {
+                    return { ok: 1 };
+                });
+
+                await Promise.map(new Array(10).fill(1), async x => {
+                    let client = broker.createQueue('testReplyTo');
+                    let response = await client.publish({ the: 'entity' });
+                    response.should.deep.equal({ ok: 1 });
+                });
+            } finally {
+                await cleanup(broker, [], 'test-reply-to');
+            }
+        });
+
     });
 
     describe('topology should: ', function () {

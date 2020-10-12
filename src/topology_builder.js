@@ -4,7 +4,7 @@ const debug = require('debug')('tabit:infra:rabbit:topology');
 
 class TopologyBuilder {
     constructor(topology) {
-        this.topology = topology;
+        this.topology = _.omit(topology, 'logger');
     }
 
     /**

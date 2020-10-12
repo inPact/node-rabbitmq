@@ -16,10 +16,7 @@ class Queue {
      * name of the section within {@param config} that should be looked up to retrive the configuration section.
      * @param [queueName] - the queue to publish to and consume from. If not provided, the {@param section.name} will be used.
      */
-    constructor(section, { queueName, logger = console, channelManager } = {}) {
-        if (queueName)
-            section.name = queueName;
-
+    constructor(section, { logger = console, channelManager } = {}) {
         this.logger = logger;
         this.consumers = [];
         this.config = section;
@@ -27,16 +24,6 @@ class Queue {
 
         this.channelManager = channelManager;
         channelManager.connectionManager.on('closed', this._restartConsumers.bind(this));
-    }
-
-    /**
-     *
-     * @param entity {Object} - A JSON entity to be serialized and published.
-     * @param [options] {Object} - publish options and/or message properties to be published (see amqplib docs).
-     * @returns {Promise} - fulfilled once the publish completes.
-     */
-    publish(entity, options = {}) {
-        return this.publishTo(this.config.name, JSON.stringify(entity), options);
     }
 
     /**
@@ -65,7 +52,7 @@ class Queue {
         this.consumers.unshift({ handler, topic, options });
 
         if (!channel)
-            channel = await this.channelManager.getConsumeChannel(topic, options)
+            channel = await this.channelManager.getConsumeChannel(topic, options);
 
         let consumeOptions = _.merge({}, this.config, options);
         let queue = consumeOptions.name || channel.__queue;
@@ -124,31 +111,20 @@ class Queue {
                 this.logger.info(`Distributed queue: Consuming messages from queue "${queue}"`);
 
             if (debug.enabled)
-                debug(`Distributed queue "${queue}" options: `, _.omit(consumeOptions, 'logger'));
+                debug(`Consuming messages from queue "${queue}" with options: `, _.omit(consumeOptions, 'logger'));
         } catch (e) {
             this.logger.error('Distributed queue: Consume failed: ' + e.stack);
         }
     }
 
-    _restartConsumers() {
-        if (!this.consumers.length)
-            return debug(`Not restarting consumers. No consumers in queue`);
-
-        debug(`Restarting consumers. Consumers in queue: ${this.consumers.length}`);
-
-        const lockName = 'DistributedQueue._restartConsumers';
-        if (lock.internal.isBusy(lockName))
-            return debug(`Consumer restart aborted: lock busy`);
-
-        return lock.acquire(lockName, () => {
-            let consumers = _.clone(this.consumers);
-            this.consumers.length = 0;
-
-            return utils.promiseWhile(() => consumers.length, () => {
-                let consumer = consumers.pop();
-                return this.consume(consumer.handler, consumer.topic, consumer.options)
-            })
-        });
+    /**
+     *
+     * @param entity {Object} - A JSON entity to be serialized and published.
+     * @param [options] {Object} - publish options and/or message properties to be published (see amqplib docs).
+     * @returns {Promise} - fulfilled once the publish completes.
+     */
+    publish(entity, options = {}) {
+        return this.publishTo(this.config.name, JSON.stringify(entity), options);
     }
 
     /**
@@ -171,7 +147,7 @@ class Queue {
                     options = _.assign({}, options, { persistent: true });
 
                 if (!channel)
-                    channel = await this.channelManager.getPublishChannel()
+                    channel = await this.channelManager.getPublishChannel();
 
                 debug(`publishing message to route or queue "${routingKey}"`);
                 // TODO: Use confirm-callback instead of received + drain-event?
@@ -191,7 +167,28 @@ class Queue {
                 reject(e);
             }
         })
-    };
+    }
+
+    _restartConsumers() {
+        if (!this.consumers.length)
+            return debug(`Not restarting consumers. No consumers in queue`);
+
+        debug(`Restarting consumers. Consumers in queue: ${this.consumers.length}`);
+
+        const lockName = 'DistributedQueue._restartConsumers';
+        if (lock.internal.isBusy(lockName))
+            return debug(`Consumer restart aborted: lock busy`);
+
+        return lock.acquire(lockName, () => {
+            let consumers = _.clone(this.consumers);
+            this.consumers.length = 0;
+
+            return utils.promiseWhile(() => consumers.length, () => {
+                let consumer = consumers.pop();
+                return this.consume(consumer.handler, consumer.topic, consumer.options)
+            })
+        });
+    }
 }
 
 

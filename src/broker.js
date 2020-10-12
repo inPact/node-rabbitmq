@@ -19,9 +19,19 @@ module.exports = class {
         });
     }
 
-    createQueue(section, { queueName, sectionOverride } = {}) {
+    /**
+     *
+     * @param section
+     * @param [queueName] {String} - override section.name to use the same configuration but for a different queue
+     * @param sectionOverride
+     * @returns {Queue|Queue}
+     */
+    createQueue(section, { queueName, sectionOverride = {} } = {}) {
         if (typeof section === 'string')
             section = this.configReader.getQueueConfig(section);
+
+        if (queueName)
+            sectionOverride.name = queueName;
 
         if (sectionOverride)
             section = _.merge({}, section, sectionOverride);
