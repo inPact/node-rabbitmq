@@ -31,6 +31,27 @@ describe('messaging: ', function () {
             }
         });
 
+        it('send and receive via basic queue', async function () {
+            let broker = new Broker({
+                url,
+                queues: {
+                    testBasic: { name: 'test-basic' }
+                }
+            });
+            try {
+                let received;
+                let queue = broker.createQueue('testBasic');
+                await queue.consume(data => received = JSON.parse(data));
+                await queue.publishTo(null, JSON.stringify({ the: 'entity' }), { useBasic: true });
+
+                await Promise.delay(100);
+                should.exist(received, `message was not received`);
+                received.should.deep.equal({ the: 'entity' });
+            } finally {
+                await cleanup(broker, 'test-basic', 'test-basic');
+            }
+        });
+
         it('send and receive via fanout queue', async function () {
             let broker = new Broker({
                 url,

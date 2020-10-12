@@ -150,46 +150,49 @@ class Queue {
             })
         });
     }
+
+    /**
+     * @param routingKey {string} - the name of the queue or topic to publish to
+     * @param message {string} - the message to publish
+     * @param channel - override default amqplib channel
+     * @param useBasic {Boolean}
+     * @param [options] - the options to attach to the published message
+     * @param [options.persistent] - whether published messages should be persistent or not;
+     * defaults to true if not specified.
+     * @param done - for internal use
+     * @returns {*}
+     */
+    async publishTo(routingKey, message, { channel, useBasic, ...options } = {}) {
+        return new Promise(async (resolve, reject) => {
+            try {
+                routingKey = routingKey || this.config.name || '';
+
+                if (!options || !_.isBoolean(options.persistent))
+                    options = _.assign({}, options, { persistent: true });
+
+                if (!channel)
+                    channel = await this.channelManager.getPublishChannel()
+
+                debug(`publishing message to route or queue "${routingKey}"`);
+                // TODO: Use confirm-callback instead of received + drain-event?
+                let received = useBasic
+                    ? channel.sendToQueue(routingKey, new Buffer(message), options)
+                    : channel.publish(this.exchangeName, routingKey, new Buffer(message), options);
+
+                if (received)
+                    return resolve();
+
+                this.logger.info(`Distributed queue: publish channel blocking, waiting for drain event.`);
+                channel.once('drain', () => {
+                    this.logger.info(`Distributed queue: drain event received, continuing...`);
+                    resolve();
+                })
+            } catch (e) {
+                reject(e);
+            }
+        })
+    };
 }
 
-/**
- * @param routingKey {string} - the name of the queue or topic to publish to
- * @param message {string} - the message to publish
- * @param channel - override default amqplib channel
- * @param useBasic {Boolean}
- * @param [options] - the options to attach to the published message
- * @param [options.persistent] - whether published messages should be persistent or not;
- * defaults to true if not specified.
- * @param done - for internal use
- * @returns {*}
- */
-Queue.prototype.publishTo = Promise.promisify(async function (routingKey, message, { channel, useBasic, ...options } = {}, done) {
-    routingKey = routingKey || this.config.name || '';
-    if (arguments.length < 4) {
-        done = options;
-        options = {};
-    }
-
-    if (!options || !_.isBoolean(options.persistent))
-        options = _.assign({}, options, { persistent: true });
-
-    if (!channel)
-        channel = await this.channelManager.getPublishChannel()
-
-    debug(`publishing message to route or queue "${routingKey}"`);
-    // TODO: Use confirm-callback instead of received + drain-event?
-    let received = useBasic
-        ? channel.sendToQueue(routingKey, new Buffer(message), options)
-        : channel.publish(this.exchangeName, routingKey, new Buffer(message), options);
-
-    if (received)
-        return done();
-
-    this.logger.info(`Distributed queue: publish channel blocking, waiting for drain event.`);
-    channel.once('drain', () => {
-        this.logger.info(`Distributed queue: drain event received, continuing...`);
-        done();
-    })
-});
 
 module.exports = Queue;
