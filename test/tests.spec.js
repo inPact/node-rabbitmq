@@ -99,7 +99,6 @@ describe('messaging: ', function () {
                 queues: {
                     testReplyTo: {
                         name: 'test-reply-to',
-                        exchange: { name: 'test-reply-to' },
                         requestReply: true
                     }
                 }
@@ -116,24 +115,17 @@ describe('messaging: ', function () {
                 });
 
 
-                let clientReceived;
                 let client = broker.createQueue('testReplyTo');
                 console.log(`======================================= client: PUBLISHING to test-reply-to =======================================`);
-                await client.publishAndWait({ the: 'entity' }, data => {
-                    console.log(`======================================= client: RECEIVED response =======================================`);
-                    clientReceived = JSON.parse(data)
-                });
-                await Promise.delay(100);
+                let response = await client.publish({ the: 'entity' });
 
                 should.exist(serverReceived, `message was not received`);
-                should.exist(clientReceived, `message was not received`);
                 serverReceived.should.deep.equal({ the: 'entity' });
-                clientReceived.should.deep.equal({ ok: 1 });
+                response.should.deep.equal({ ok: 1 });
             } finally {
-                await cleanup(broker, 'test-reply-to', 'test-reply-to');
+                await cleanup(broker, [], 'test-reply-to');
             }
         });
-        ``
     });
 
     describe('topology should: ', function () {
@@ -170,6 +162,9 @@ describe('messaging: ', function () {
 });
 
 async function cleanup(broker, exchanges, ...queues) {
+    if (process.env.NO_TEST_CLEANUP)
+        return;
+
     exchanges = [].concat(exchanges);
     let channel = await (await broker.getConnection()).createChannel();
 

@@ -12,7 +12,7 @@
   "author": "joniba <jbenami1@gmail.com>",
   "license": "MIT",
   "scripts": {
-    "test": "mocha --exit"
+    "test": "mocha"
   },
   "dependencies": {
     "@tabit/utils": "^3.7.0",

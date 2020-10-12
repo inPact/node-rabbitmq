@@ -58,7 +58,7 @@ module.exports = class RequestReplyQueue extends DistributedQueue {
                 correlationId: props.correlationId,
                 channel: await this.channelManager.getConsumeChannel()
             });
-        }
+        };
 
         return super.consume(responder, topic, options);
     }
@@ -66,27 +66,19 @@ module.exports = class RequestReplyQueue extends DistributedQueue {
     /**
      * Publish message and handle response when it arrives
      * @param entity - the message to publish
-     * @param handler {Function} - a function to handle the response, that receives a single argument: the response.
-     * @param publishOptions
+     * @param options
      * @returns {*}
      */
-    async publishAndWait(entity, handler, publishOptions = {}) {
+    async publish(entity, options = {}) {
         const correlationId = uuid.v4();
-        publishOptions.replyTo = REPLY_TO_QUEUE;
-        publishOptions.correlationId = correlationId;
+        options.replyTo = REPLY_TO_QUEUE;
+        options.correlationId = correlationId;
 
         await this._listenToReplies();
 
-        return new Promise((resolve, reject) => {
-            this.responseEmitter.once(correlationId, async response => {
-                try {
-                    let result = await handler(response);
-                    resolve(result);
-                } catch (e) {
-                    reject(e);
-                }
-            });
-            this.publish(entity, publishOptions);
+        return new Promise(resolve => {
+            this.responseEmitter.once(correlationId, async response => resolve(this._deserialize(response)));
+            super.publish(entity, options);
         })
     }
 
@@ -99,5 +91,16 @@ module.exports = class RequestReplyQueue extends DistributedQueue {
             this.logger.error(e);
         }
     }
-}
+
+    _deserialize(response) {
+        try {
+            if (!response)
+                return;
+
+            return JSON.parse(response);
+        } catch (e) {
+            this.logger.error(e);
+        }
+    }
+};
 
