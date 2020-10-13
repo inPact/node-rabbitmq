@@ -2,8 +2,7 @@ const Promise = require('bluebird');
 const should = require('chai').should();
 const Broker = require('..');
 const url = 'amqp://localhost';
-const API_URL = 'http://localhost:15672/api';
-const superagent = require('superagent');
+const common = require('./common');
 
 describe('messaging: ', function () {
     describe('send and receive should: ', function () {
@@ -27,7 +26,7 @@ describe('messaging: ', function () {
                 should.exist(received, `message was not received`);
                 received.should.deep.equal({ the: 'entity' });
             } finally {
-                await cleanup(broker, 'test-basic', 'test-basic');
+                await common.cleanup(broker, 'test-basic', 'test-basic');
             }
         });
 
@@ -48,7 +47,7 @@ describe('messaging: ', function () {
                 should.exist(received, `message was not received`);
                 received.should.deep.equal({ the: 'entity' });
             } finally {
-                await cleanup(broker, 'test-basic', 'test-basic');
+                await common.cleanup(broker, 'test-basic', 'test-basic');
             }
         });
 
@@ -78,7 +77,7 @@ describe('messaging: ', function () {
                 await Promise.delay(100);
                 received.length.should.equal(2);
             } finally {
-                await cleanup(broker, 'test-basic', 'q1', 'q2');
+                await common.cleanup(broker, 'test-basic', 'q1', 'q2');
             }
         });
 
@@ -110,7 +109,7 @@ describe('messaging: ', function () {
                 await Promise.delay(100); // wait for pub/sub
                 received.length.should.equal(2);
             } finally {
-                await cleanup(broker, 'test', 'test');
+                await common.cleanup(broker, 'test', 'test');
             }
         });
     });
@@ -147,7 +146,7 @@ describe('messaging: ', function () {
                 response.should.deep.equal({ ok: 1 });
                 console.log(`=============================== SUCCESS ===============================`);
             } finally {
-                await cleanup(broker, [], 'test-reply-to');
+                await common.cleanup(broker, [], 'test-reply-to');
             }
         });
 
@@ -173,63 +172,39 @@ describe('messaging: ', function () {
                     response.should.deep.equal({ ok: 1 });
                 });
             } finally {
-                await cleanup(broker, [], 'test-reply-to');
+                await common.cleanup(broker, [], 'test-reply-to');
             }
         });
 
-    });
-
-    describe('topology should: ', function () {
-        it('accept section overrides', async function () {
+        it('send and receive via direct reply-to queue without response', async function () {
             let broker = new Broker({
                 url,
                 queues: {
-                    test: {
-                        name: 'test',
-                        exchange: { name: 'test' }
+                    testReplyTo: {
+                        name: 'test-reply-to',
+                        requestReply: true
                     }
                 }
             });
             try {
-                await broker.createQueue('test', {
-                    queueName: 'custom-name',
-                    sectionOverride: {
-                        exchange: {
-                            name: 'custom-exchange-name'
-                        }
-                    }
-                }).consume(x => x);
+                let serverReceived;
+                let server = broker.createQueue('testReplyTo');
+                await server.consume(async (data, props) => {
+                    await Promise.delay(50);
+                    serverReceived = JSON.parse(data);
+                });
 
-                // await Promise.delay(200); // on travis-ci managment plugin has some delay before updating
-                let response = await superagent.get(`${API_URL}/exchanges`).auth('guest', 'guest');
-                let exchanges = response.body.map(x => x.name);
-                exchanges.should.include('custom-exchange-name', exchanges);
-                exchanges.should.not.include('test');
+                let client = broker.createQueue('testReplyTo');
+                let response = await client.publish({ the: 'entity' });
+
+                should.exist(serverReceived, `message was not received`);
+                serverReceived.should.deep.equal({ the: 'entity' });
+
+                should.not.exist(response);
             } finally {
-                await cleanup(broker, ['custom-name', 'test'], 'custom-exchange-name', 'test');
+                await common.cleanup(broker, [], 'test-reply-to');
             }
         });
-    })
+
+    });
 });
-
-async function cleanup(broker, exchanges, ...queues) {
-    if (process.env.NO_TEST_CLEANUP)
-        return;
-
-    exchanges = [].concat(exchanges);
-    let channel = await (await broker.getConnection()).createChannel();
-
-    console.log(`=============================== CLEANUP: deleting queues ===============================`);
-    await Promise.each(queues, async q => {
-        if (q)
-            await channel.deleteQueue(q);
-    });
-
-    console.log(`=============================== CLEANUP: deleting exchanges ===============================`);
-    Promise.each(exchanges, async x => {
-        if (x)
-            await channel.deleteExchange(x);
-    });
-
-    console.log(`=============================== CLEANUP: finished ===============================`);
-}

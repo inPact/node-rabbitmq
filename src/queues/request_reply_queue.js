@@ -22,25 +22,6 @@ module.exports = class RequestReplyQueue extends DistributedQueue {
         this.responseEmitter.setMaxListeners(0);
     }
 
-    async _listenToReplies() {
-        if (!this.listenForResponses) {
-            this.listenForResponses = super.consume(
-                (data, props) => {
-                    debug(`received response on reply-queue "${props.correlationId}", sending to handler...`);
-                    this.responseEmitter.emit(props.correlationId, data);
-                },
-                {
-                    noAck: true,
-                    name: REPLY_TO_QUEUE,
-                    channel: await this.channelManager.getPublishChannel()
-                },
-            );
-        }
-
-        await this.listenForResponses;
-        debug(`registered for responses on direct reply-to queue`);
-    }
-
     async consume(handler, topic, options) {
         if (options)
             options = _.omit(options, 'requeueToTail');
@@ -78,10 +59,30 @@ module.exports = class RequestReplyQueue extends DistributedQueue {
         })
     }
 
+    async _listenToReplies() {
+        if (!this.listenForResponses) {
+            this.listenForResponses = super.consume(
+                (data, props) => {
+                    debug(`received response on reply-queue "${props.correlationId}", sending to handler...`);
+                    this.responseEmitter.emit(props.correlationId, data);
+                },
+                {
+                    noAck: true,
+                    name: REPLY_TO_QUEUE,
+                    channel: await this.channelManager.getPublishChannel()
+                },
+            );
+        }
+
+        await this.listenForResponses;
+        debug(`registered for responses on direct reply-to queue`);
+    }
+
     _serialize(response) {
         try {
             if (!response)
-                return;
+                return '';
+
             return JSON.stringify(response);
         } catch (e) {
             this.logger.error(e);
