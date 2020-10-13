@@ -11,7 +11,7 @@ class ConfigReader {
 
     getQueueConfig(queueConfigType) {
         let queueConfig = this.amqpConfig.queues[queueConfigType];
-        return _.merge({}, queueConfig, this.amqpParams);
+        return _.merge({}, this.amqpParams, queueConfig);
     }
 }
 

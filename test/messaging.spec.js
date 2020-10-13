@@ -112,6 +112,69 @@ describe('messaging: ', function () {
                 await common.cleanup(broker, 'test', 'test');
             }
         });
+
+        it('merge options from root config', async function () {
+            const PREFETCH = 5;
+            let broker = new Broker({
+                url,
+                prefetch: PREFETCH,
+                queues: {
+                    test: {
+                        name: 'test',
+                        exchange: { name: 'test' }
+                    }
+                }
+            });
+            try {
+                let handling = 0;
+                let queue = broker.createQueue('test');
+                await queue.consume(async x => {
+                    handling++;
+                    await Promise.delay(PREFETCH * 30);
+                });
+
+                for (let i of new Array(PREFETCH * 2).fill(1)) {
+                    await queue.publish({ the: 'entity' });
+                }
+
+                await Promise.delay(PREFETCH * 10);
+                handling.should.equal(PREFETCH);
+            } finally {
+                await common.cleanup(broker, 'test', 'test');
+            }
+        });
+
+        it('override root config options with queue options', async function () {
+            const PREFETCH = 4;
+            let broker = new Broker({
+                url,
+                prefetch: PREFETCH * 2,
+                queues: {
+                    test: {
+                        prefetch: PREFETCH,
+                        name: 'test',
+                        exchange: { name: 'test' }
+                    }
+                }
+            });
+            try {
+                let handling = 0;
+                let queue = broker.createQueue('test');
+                await queue.consume(async x => {
+                    handling++;
+                    await Promise.delay(PREFETCH * 30);
+                });
+
+                for (let i of new Array(PREFETCH * 2).fill(1)) {
+                    await queue.publish({ the: 'entity' });
+                }
+
+                await Promise.delay(PREFETCH * 10);
+                handling.should.equal(PREFETCH);
+            } finally {
+                await common.cleanup(broker, 'test', 'test');
+            }
+        });
     });
 
     describe('request-reply should: ', function () {

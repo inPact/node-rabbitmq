@@ -57,7 +57,7 @@ class Queue {
         let consumeOptions = _.merge({}, this.config, options);
         let queue = consumeOptions.name || channel.__queue;
 
-        channel.prefetch(consumeOptions.limit || 100);
+        channel.prefetch(consumeOptions.prefetch || 100);
 
         try {
             await channel.consume(queue, async message => {
@@ -112,6 +112,8 @@ class Queue {
 
             if (debug.enabled)
                 debug(`Consuming messages from queue "${queue}" with options: `, _.omit(consumeOptions, 'logger'));
+
+            return channel;
         } catch (e) {
             this.logger.error('Distributed queue: Consume failed: ' + e.stack);
         }

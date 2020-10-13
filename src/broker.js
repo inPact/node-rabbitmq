@@ -36,6 +36,9 @@ module.exports = class {
         if (sectionOverride)
             section = _.merge({}, section, sectionOverride);
 
+        if (section.limit)
+            section.prefetch = section.limit;
+
         return queueFactory.create(section, {
             queueName,
             logger: this.logger,
