@@ -33,7 +33,10 @@ class ChannelManager {
     }
 
     async getPublishChannel() {
-        return await (this.channels.pub || this._createChannel('pub'));
+        if (!this.channels.pub)
+            this.channels.pub = this._createChannel('pub');
+
+        return this.channels.pub;
     }
 
     /**
@@ -45,8 +48,12 @@ class ChannelManager {
      * @returns {*}
      */
     async getConsumeChannel(topic, options) {
-        if (!topic)
-            return await (this.channels.sub || this._createChannel('sub'));
+        if (!topic) {
+            if (!this.channels.sub)
+                this.channels.sub = this._createChannel('sub');
+
+            return this.channels.sub;
+        }
 
         return this._createTopicChannel(topic, options);
     }

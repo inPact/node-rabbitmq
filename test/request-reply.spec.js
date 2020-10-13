@@ -40,7 +40,7 @@ describe('request-reply should: ', function () {
         }
     });
 
-    it('publish multiple requests in parallel', async function () {
+    it('publish multiple requests in parallel from the same queue wrapper', async function () {
         let broker = new Broker({
             url,
             queues: {
@@ -56,8 +56,8 @@ describe('request-reply should: ', function () {
                 return { ok: 1 };
             });
 
+            let client = broker.createQueue('testReplyTo');
             await Promise.map(new Array(10).fill(1), async x => {
-                let client = broker.createQueue('testReplyTo');
                 let response = await client.publish({ the: 'entity' });
                 response.should.deep.equal({ ok: 1 });
             });

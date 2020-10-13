@@ -1,5 +1,7 @@
-## 2.1.0
+## 2.1.1
 * more readable traces for request-reply debugging
+* fix bug in which parallel request-reply publishes on the same queue wrapper would cause 
+  unnecessary publish channels to be opened
 
 ## 2.1.0
 * use more standard name for prefetch configuration
