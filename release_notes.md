@@ -1,4 +1,7 @@
 ## 2.1.0
+* more readable traces for request-reply debugging
+
+## 2.1.0
 * use more standard name for prefetch configuration
 * override default configuration with queue configuration
 

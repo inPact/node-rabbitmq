@@ -1,6 +1,6 @@
 const _ = require('lodash');
 const Promise = require('bluebird');
-const debug = require('debug')('tabit:infra:rabbit');
+const debug = require('debug')('tabit:infra:rabbit:rpc');
 const uuid = require('uuid');
 const EventEmitter = require('events');
 const DistributedQueue = require('./distributed_queue');
@@ -27,13 +27,17 @@ module.exports = class RequestReplyQueue extends DistributedQueue {
             options = _.omit(options, 'requeueToTail');
 
         let responder = async (data, props, fields, msg) => {
-            debug(`received request on reply-queue "${props.correlationId}", sending to handler...`);
+            let channel = await this.channelManager.getConsumeChannel();
+            let description = descriptor({ queue: this.config.name, correlationId: props.correlationId, channel });
+
+            debug(`Q-->* received request from ${description}, sending to handler...`);
             let response = await handler(data, props, fields);
-            debug(`sending response to reply-queue "${props.correlationId}"`);
+
+            debug(`Q<--* sending response to ${description}`);
             await this.publishTo(props.replyTo, this._serialize(response), {
+                channel,
                 useBasic: true,
-                correlationId: props.correlationId,
-                channel: await this.channelManager.getConsumeChannel()
+                correlationId: props.correlationId
             });
         };
 
@@ -51,31 +55,38 @@ module.exports = class RequestReplyQueue extends DistributedQueue {
         options.replyTo = REPLY_TO_QUEUE;
         options.correlationId = correlationId;
 
-        await this._listenToReplies();
+        let channel = await this.channelManager.getPublishChannel();
+        await this._listenToReplies(channel);
 
         return new Promise(resolve => {
             this.responseEmitter.once(correlationId, async response => resolve(this._deserialize(response)));
-            super.publish(entity, options);
+            debug(`*-->Q publishing message to ${descriptor({ queue: this.config.name, correlationId, channel })}`);
+            super.publish(entity, { channel, ...options });
         })
     }
 
-    async _listenToReplies() {
-        if (!this.listenForResponses) {
-            this.listenForResponses = super.consume(
-                (data, props) => {
-                    debug(`received response on reply-queue "${props.correlationId}", sending to handler...`);
-                    this.responseEmitter.emit(props.correlationId, data);
-                },
-                {
-                    noAck: true,
-                    name: REPLY_TO_QUEUE,
-                    channel: await this.channelManager.getPublishChannel()
-                },
-            );
-        }
+    async _listenToReplies(channel) {
+        if (!this.listenForResponses)
+            this.listenForResponses = this._createReplyListener(channel);
 
         await this.listenForResponses;
-        debug(`registered for responses on direct reply-to queue`);
+    }
+
+    async _createReplyListener(channel) {
+        await super.consume(
+            (data, props) => {
+                let description = descriptor({ queue: this.config.name, correlationId: props.correlationId, channel });
+                debug(`*<--Q received response from ${description}, sending to handler...`);
+                this.responseEmitter.emit(props.correlationId, data);
+            },
+            {
+                channel,
+                noAck: true,
+                name: REPLY_TO_QUEUE,
+            },
+        );
+
+        debug(`listening for responses on direct reply-to queue, channel "${channel.getDescriptor()}"`);
     }
 
     _serialize(response) {
@@ -101,3 +112,16 @@ module.exports = class RequestReplyQueue extends DistributedQueue {
     }
 };
 
+function descriptor({ queue, correlationId, channel }) {
+    let parts = [];
+    if (queue)
+        parts.push(`queue "${queue}"`);
+
+    if (correlationId)
+        parts.push(`with replyTo "${correlationId}"`);
+
+    if (channel)
+        parts.push(`on channel "${channel.getDescriptor()}"`);
+
+    return _.join(parts, ' ');
+}

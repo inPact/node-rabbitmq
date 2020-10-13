@@ -21,7 +21,7 @@ module.exports = class {
 
     /**
      *
-     * @param section
+     * @param section {String|Object}
      * @param [queueName] {String} - override section.name to use the same configuration but for a different queue
      * @param sectionOverride
      * @returns {Queue|Queue}

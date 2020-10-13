@@ -118,11 +118,14 @@ class ChannelManager {
     _manageChannel(channel, channelType) {
         if (channelType) {
             channel.__type = channelType;
+            channel.getDescriptor = function () {
+                return descriptor(this);
+            };
             this.channels[channelType] = channel;
         }
 
         channel.once('close', () => {
-            this.logger.warn(`Distributed queue: channel "${descriptor(channel)}" closed`);
+            this.logger.warn(`Distributed queue: channel "${channel.getDescriptor()}" closed`);
             this._clearChannel(channel);
         });
 
@@ -130,7 +133,7 @@ class ChannelManager {
             let append = e.stackAtStateChange
                 ? '\r\n\tStack at state change: ' + e.stackAtStateChange
                 : '';
-            this.logger.error(`Distributed queue error in channel "${descriptor(channel)}": ` + utils.errorToString(e) + append);
+            this.logger.error(`Distributed queue error in channel "${channel.getDescriptor()}": ` + utils.errorToString(e) + append);
             this._clearChannel(channel);
         })
     }
