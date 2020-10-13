@@ -1,8 +1,8 @@
-## NEXT
+## 2.1.0
 * use more standard name for prefetch configuration
 * override default configuration with queue configuration
 
-## 2.0.1
+### 2.0.1
 * various bug fixes
 
 # 2.0.0
