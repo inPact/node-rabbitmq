@@ -132,7 +132,7 @@ describe('messaging: ', function () {
                 await server.consume(async (data, props) => {
                     console.log(`======================================= server: received message =======================================`);
                     serverReceived = JSON.parse(data);
-                    should.exist(props.replyTo)
+                    should.exist(props.replyTo);
                     return { ok: 1 };
                 });
 

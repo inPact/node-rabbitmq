@@ -1,3 +1,6 @@
+## 2.0.1
+* various bug fixes
+
 # 2.0.0
 * added request-reply support using rabbitmq direct-reply-to queues
 
