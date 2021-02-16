@@ -4,8 +4,9 @@ const ConnectionManager = require('./connection_manager');
 const TopologyBuilder = require('./topology_builder');
 const ConfigReader = require('./config_reader');
 const queueFactory = require('./queues');
+const BrokerWrapper = require('./broker-wrapper');
 
-module.exports = class {
+module.exports = class Broker {
     constructor(config) {
         this.logger = config.logger || console;
         this.config = config;
@@ -49,4 +50,21 @@ module.exports = class {
     async getConnection() {
         return await this.connectionManager.getConnection();
     }
+
+   /**
+    * Syntax for the new services
+    * @param {string} handle 
+    * @param {string} name 
+    * @param {object} options 
+    * @returns {ConnectionManagerWrapper} the wrapped connection
+    */
+   static assignNewBroker(handle, name, options) {
+       if (!options) options = {};
+       if (!options.name) options.name = name || 'Default Connection';
+       if (!handle) throw new Error('cannot assign broker without handle');
+       if (Broker[handle]) throw new Error(`Cannot assign '${handle}', since already assigned. please pick another name`);
+       Broker[handle] = new BrokerWrapper(options);
+       return Broker[handle];
+   }
+
 };
