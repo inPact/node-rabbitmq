@@ -1,7 +1,7 @@
 const amqp = require('amqplib');
 const debug = require('debug')('tabit:infra:rabbit');
 const EventEmitter = require('events').EventEmitter;
-const utils = require('@tabit/utils');
+const utils = require('@inpact/utils');
 const lock = utils.lock;
 
 let connections = 0;

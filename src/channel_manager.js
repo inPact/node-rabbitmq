@@ -1,5 +1,5 @@
 const _ = require('lodash');
-const utils = require('@tabit/utils');
+const utils = require('@inpact/utils');
 
 const TopologyBuilder = require('./topology_builder');
 const ConnectionManager = require('./connection_manager');

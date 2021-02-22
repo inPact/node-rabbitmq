@@ -15,7 +15,7 @@ module.exports = {
         });
 
         console.log(`=============================== CLEANUP: deleting exchanges ===============================`);
-        Promise.each(exchanges, async x => {
+        await Promise.each(exchanges, async x => {
             if (x)
                 await channel.deleteExchange(x);
         });

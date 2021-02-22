@@ -15,7 +15,7 @@
     "test": "mocha"
   },
   "dependencies": {
-    "@tabit/utils": "^3.7.0",
+    "@inpact/utils": "^3.8.1",
     "amqplib": "^0.6.0",
     "bluebird": "^3.7.2",
     "debug": "^4.2.0",
