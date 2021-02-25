@@ -17,11 +17,8 @@ class TopologyBuilder {
      * @returns {Promise.<TResult>}
      */
     async assertTopology(channel, options = {}) {
-        let topology = this.topology;
-        debug(`building topology: `, topology);
-
-        if (options.override)
-            topology = _.merge({}, topology, options.override);
+        debug(`building topology: `, this.topology);
+        const topology = this.getOverrideableTopology(options);
 
         if (this.topology.deadLetter)
             await this.assertDeadLetterExchange(channel, topology.deadLetter);
@@ -66,7 +63,7 @@ class TopologyBuilder {
             deadLetterExchange: queueConfig.deadLetter && queueConfig.deadLetter.dlx,
         });
 
-        let res = await channel.assertQueue(queue || '', queueConfig);
+        let res = await channel.assertQueue(queue || queueConfig.name || '', queueConfig);
         channel.__queue = res.queue;
 
         if (exchangeConfig) {
@@ -85,6 +82,13 @@ class TopologyBuilder {
             _.assign({ name: config.dlq }, config),
             { name: config.dlx, type: 'fanout' },
             true);
+    }
+
+    getOverrideableTopology(options = {}) {
+        let topology = this.topology;
+        if (options.override)
+            topology = _.merge({}, topology, options.override);
+        return topology;
     }
 }
 

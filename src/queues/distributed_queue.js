@@ -4,17 +4,23 @@ const debug = require('debug')('tabit:infra:rabbit');
 const verbose = require('debug')('tabit:infra:rabbit:verbose');
 const utils = require('@inpact/utils');
 const lock = utils.lock;
+const ChannelManager = require('../channel_manager');
 
 /**
  * Encapsulates a distributed amqp queue with a single connection
  * and at most one publish channel and one consume channel.
  * @type {Queue}
  */
+
+/** Class representing a queue section. */
 class Queue {
+
     /**
-     * @param section {Object|String} - the queue configuration to assert, as a full configuration section object or just the
-     * name of the section within {@param config} that should be looked up to retrive the configuration section.
-     * @param [queueName] - the queue to publish to and consume from. If not provided, the {@param section.name} will be used.
+     * Create queue section
+     * @param {Object|String} section The queue configuration to assert, as a full configuration section object or just the name of the section within.
+     * @param {Object} [options] Optional 
+     * @param {Object} [options.logger] Logger to log
+     * @param {ChannelManager} [options.channelManager] - the associated channel manager
      */
     constructor(section, { logger = console, channelManager } = {}) {
         this.logger = logger;
