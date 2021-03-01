@@ -160,8 +160,8 @@ class Queue {
                 debug(`publishing message to route or queue "${routingKey}"`);
                 // TODO: Use confirm-callback instead of received + drain-event?
                 let received = useBasic
-                    ? channel.sendToQueue(routingKey, new Buffer(message), options)
-                    : channel.publish(this.exchangeName, routingKey, new Buffer(message), options);
+                    ? channel.sendToQueue(routingKey, Buffer.from(message), options)
+                    : channel.publish(this.exchangeName, routingKey, Buffer.from(message), options);
 
                 if (received)
                     return resolve();

@@ -32,8 +32,8 @@ class TopologyBuilder {
             await channel.assertExchange(exchangeConfig.name, exchangeConfig.type);
 
         if (_.get(exchangeConfig, 'type') === 'topic') {
-            if (channelType !== 'topic') {
-                const error = new Error('channel purpose is topic, but no topic provided to consume');
+            if (channelType === 'sub') {
+                const error = new Error('channel exchange is topic, but no topic provided to consume, so now queue will get created');
                 error.doNotRetry = true;
                 throw error;
             }
