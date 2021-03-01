@@ -75,7 +75,7 @@ class ChannelManager {
      * @private
      */
     _createTopicChannel(topic, options = {}) {
-        return this._createChannel(options)
+        return this._createChannel('topic', options)
             .then(channel => this.topologyBuilder.assertQueue(channel, topic, options.name, options)
                 .then(() => {
                     if (options.name) {
@@ -101,20 +101,18 @@ class ChannelManager {
      * @private
      */
     async _createChannel(channelType, options) {
-        if (_.isObject(channelType)) {
-            options = channelType;
-            channelType = undefined;
-        }
+
+        if (!channelType || !_.isString(channelType)) throw new Error('must provide string channel type');
 
         return await new Retry(
             () => this.getConnection()
                 .then(conn => channelType === 'pub' ? conn.createConfirmChannel() : conn.createChannel())
                 .then(async channel => {
                     this._manageChannel(channel, channelType);
-                    await this.topologyBuilder.assertTopology(channel, options);
+                    await this.topologyBuilder.assertTopology(channel, channelType, options);
                     return channel;
                 }),
-            { delay: 1000, maxTime: Infinity, title: 'Distributed queue' })
+            { delay: 1000, maxTime: Infinity, title: 'Distributed queue', retryErrorMatch: e => !e.doNotRetry })
             .execute();
     }
 
