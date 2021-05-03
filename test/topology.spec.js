@@ -19,7 +19,7 @@ describe('topology should: ', function () {
             }
         });
         try {
-            await broker.createQueue('test', {
+            await broker.initQueue('test', {
                 queueName: 'custom-name',
                 sectionOverride: {
                     exchange: {
@@ -59,7 +59,7 @@ describe('topology should: ', function () {
             }
         });
         try {
-            await broker.createQueue('test').consume(x => x);
+            await broker.initQueue('test').consume(x => x);
 
             let exchanges = await getFromApi('exchanges');
             let queues = await getFromApi('queues');
@@ -106,8 +106,8 @@ describe('topology should: ', function () {
             }
         });
         try {
-            await broker.createQueue('test').consume(x => x);
-            await broker.createQueue('test', { queueName: 'overriden' }).consume(x => x);
+            await broker.initQueue('test').consume(x => x);
+            await broker.initQueue('test', { queueName: 'overriden' }).consume(x => x);
 
             let exchanges = await getFromApi('exchanges');
             let queues = await getFromApi('queues');

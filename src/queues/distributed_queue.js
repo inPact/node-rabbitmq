@@ -10,11 +10,16 @@ const lock = utils.lock;
  * and at most one publish channel and one consume channel.
  * @type {Queue}
  */
+
+/** Class representing a queue section. */
 class Queue {
+
     /**
-     * @param section {Object|String} - the queue configuration to assert, as a full configuration section object or just the
-     * name of the section within {@param config} that should be looked up to retrive the configuration section.
-     * @param [queueName] - the queue to publish to and consume from. If not provided, the {@param section.name} will be used.
+     * Create queue section
+     * @param {Object|String} section The queue configuration to assert, as a full configuration section object or just the name of the section within.
+     * @param {Object} [options] Optional 
+     * @param {Object} [options.logger] Logger to log
+     * @param {ChannelManager} [options.channelManager] - the associated channel manager
      */
     constructor(section, { logger = console, channelManager } = {}) {
         this.logger = logger;
@@ -154,8 +159,8 @@ class Queue {
                 debug(`publishing message to route or queue "${routingKey}"`);
                 // TODO: Use confirm-callback instead of received + drain-event?
                 let received = useBasic
-                    ? channel.sendToQueue(routingKey, new Buffer(message), options)
-                    : channel.publish(this.exchangeName, routingKey, new Buffer(message), options);
+                    ? channel.sendToQueue(routingKey, Buffer.from(message), options)
+                    : channel.publish(this.exchangeName, routingKey, Buffer.from(message), options);
 
                 if (received)
                     return resolve();
