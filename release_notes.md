@@ -1,4 +1,4 @@
-## NEXT
+## 3.0.0
 * BREAKING CHANGES: 
   * change "createQueue" to "initQueue"
   * use queue-name from topology-configuration if no queue-name was provided in the options to "assertQueue" method  
