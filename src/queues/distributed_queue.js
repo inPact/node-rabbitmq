@@ -2,7 +2,7 @@ const _ = require('lodash');
 const Promise = require('bluebird');
 const debug = require('debug')('tabit:infra:rabbit');
 const verbose = require('debug')('tabit:infra:rabbit:verbose');
-const utils = require('@inpact/utils');
+const utils = require('@tabit/utils');
 const lock = utils.lock;
 const ChannelManager = require('../channel_manager');
 

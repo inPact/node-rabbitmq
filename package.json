@@ -7,8 +7,7 @@
     "url": "git+https://github.com/inPact/node-rabbitmq.git"
   },
   "publishConfig": {
-    "access": "public",
-    "registry": "https://npm.pkg.github.com"
+    "access": "public"
   },
   "author": "joniba <jbenami1@gmail.com>",
   "license": "MIT",
@@ -16,7 +15,7 @@
     "test": "mocha"
   },
   "dependencies": {
-    "@inpact/utils": "^3.8.1",
+    "@tabit/utils": "^4.0.2",
     "amqplib": "^0.6.0",
     "bluebird": "^3.7.2",
     "debug": "^4.2.0",
