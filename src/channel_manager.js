@@ -75,7 +75,7 @@ class ChannelManager {
      * @private
      */
     _createTopicChannel(topic, options = {}) {
-        return this._createChannel('topic', options)
+        return this._createChannel(options)
             .then(channel => this.topologyBuilder.assertQueue(channel, topic, options.name, options)
                 .then(() => {
                     if (options.name) {
@@ -93,26 +93,29 @@ class ChannelManager {
 
     /**
      *
-     * @param [channelType] {String}
-     * @param [options] {Object}
-     * @param [options.override] {Object} - any desired overrides of the default configuration that was provided
+     * @param {"pub"|"sub"} [channelType] - indicates whether this channel should be created as publish channel
+     * (with auto-confirm) or a subscribe channel (without auto-confirm)
+     * @param {Object} [options]
+     * @param {Object}[options.override] - any desired overrides of the default configuration that was provided
      * when this instance was created.
      * @returns {*}
      * @private
      */
     async _createChannel(channelType, options) {
-
-        if (!channelType || !_.isString(channelType)) throw new Error('must provide string channel type');
+        if (_.isObject(channelType)) {
+            options = channelType;
+            channelType = undefined;
+        }
 
         return await new Retry(
             () => this.getConnection()
                 .then(conn => channelType === 'pub' ? conn.createConfirmChannel() : conn.createChannel())
                 .then(async channel => {
                     this._manageChannel(channel, channelType);
-                    await this.topologyBuilder.assertTopology(channel, channelType, options);
+                    await this.topologyBuilder.assertTopology(channel, options);
                     return channel;
                 }),
-            { delay: 1000, maxTime: Infinity, title: 'Distributed queue', retryErrorMatch: e => !e.doNotRetry })
+            { delay: 1000, maxTime: Infinity, title: 'Distributed queue' })
             .execute();
     }
 

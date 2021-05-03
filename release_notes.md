@@ -1,3 +1,8 @@
+## NEXT
+* BREAKING CHANGES: 
+  * change "createQueue" to "initQueue"
+  * use queue-name from topology-configuration if no queue-name was provided in the options to "assertQueue" method  
+
 ## 2.1.1
 * more readable traces for request-reply debugging
 * fix bug in which parallel request-reply publishes on the same queue wrapper would cause 

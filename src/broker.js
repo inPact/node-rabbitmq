@@ -23,13 +23,15 @@ module.exports = class {
     }
 
     /**
-     * @deprecated since version ..
-     * @param section {String|Object}
-     * @param [queueName] {String} - override section.name to use the same configuration but for a different queue
-     * @param sectionOverride
-     * @returns {Queue|Queue}
+     * Init section a.k.a queue and it's related exchanges, dead letters etc.
+     * Assertion will be made lazy, a.k.a on consume / publish.
+     * @param section {String|Object} if section is a string, it's a ref to a named section provided at the Broker construction
+     * @param {Object} [options={}] Additional options
+     * @param {string} [options.queueName] override section.name to use the same configuration but for a different queue
+     * @param {Object} [options.sectionOverride] overrides various things at section
+     * @returns {Queue} the section
      */
-    createQueue(section, { queueName, sectionOverride = {} } = {}) {
+    initQueue(section, { queueName, sectionOverride = {} } = {}) {
         if (typeof section === 'string')
             section = this.configReader.getQueueConfig(section);
 
@@ -47,19 +49,6 @@ module.exports = class {
             logger: this.logger,
             channelManager: this.channelManager.forSection(section)
         });
-    }
-
-    /**
-     * Init section a.k.a queue and it's related exchanges, dead letters etc.  
-     * Assertion will be made lazy, a.k.a on consume / publish.
-     * @param section {String|Object} if section is a string, it's a ref to a named section provided at the Broker construction
-     * @param {Object} [options={}] Additional options
-     * @param {string} [options.queueName] override section.name to use the same configuration but for a different queue
-     * @param {Object} [options.sectionOverride] overrides various things at section
-     * @returns {Queue} the section
-     */
-    initQueueSection(section, options) {
-        return this.createQueue(section, options);
     }
 
     async getConnection() {

@@ -16,31 +16,24 @@ class TopologyBuilder {
      * when this instance was created.
      * @returns {Promise.<TResult>}
      */
-    async assertTopology(channel, channelType, options = {}) {
+    async assertTopology(channel, options = {}) {
         debug(`building topology: `, this.topology);
         const topology = this.getOverrideableTopology(options);
 
         if (this.topology.deadLetter)
-            await this.assertDeadLetterExchange(channel, channelType, topology.deadLetter);
+            await this.assertDeadLetterExchange(channel, topology.deadLetter);
 
-        await this.assertExchangeAndQueue(channel, channelType, topology, topology.exchange);
+        await this.assertExchangeAndQueue(channel, topology, topology.exchange);
         debug(`topology built successfully`);
     }
 
-    async assertExchangeAndQueue(channel, channelType, queueConfig = this.topology, exchangeConfig = this.topology.exchange) {
+    async assertExchangeAndQueue(channel, queueConfig = this.topology, exchangeConfig = this.topology.exchange) {
         if (exchangeConfig && exchangeConfig.name)
             await channel.assertExchange(exchangeConfig.name, exchangeConfig.type);
 
-        if (_.get(exchangeConfig, 'type') === 'topic') {
-            if (channelType === 'sub') {
-                const error = new Error('channel exchange is topic, but no topic provided to consume, so now queue will get created');
-                error.doNotRetry = true;
-                throw error;
-            }
+        if (_.get(exchangeConfig, 'type') === 'topic' ||
+            _.get(exchangeConfig, 'bindQueue') === false)
             return;
-        }
-
-        if (_.get(exchangeConfig, 'bindQueue') === false) return;
 
         return await this.assertQueue(channel, '', queueConfig.name, {}, queueConfig, exchangeConfig);
     }
@@ -63,7 +56,6 @@ class TopologyBuilder {
      * when this instance was created.
      */
     async assertQueue(channel, routingKey, queue, options = {}, queueConfig = this.topology, exchangeConfig = this.topology.exchange) {
-
         const topology = this.getOverrideableTopology(options, queueConfig);
 
         // Where there is no override, there will be a mutation here (I'm not sure why) -- Nati
@@ -81,22 +73,22 @@ class TopologyBuilder {
         }
     }
 
-    async assertDeadLetterExchange(channel, channelType, config) {
+    async assertDeadLetterExchange(channel, config) {
         if (config.deadLetter)
-            await this.assertDeadLetterExchange(channel, channelType, config.deadLetter);
+            await this.assertDeadLetterExchange(channel, config.deadLetter);
 
         await this.assertExchangeAndQueue(
             channel,
-            channelType,
             _.assign({ name: config.dlq }, config),
             { name: config.dlx, type: 'fanout' },
             true);
     }
 
     getOverrideableTopology(options = {}, topology = this.topology) {
-        let overridedTopology = topology;
-        if (options.override) overridedTopology = _.merge({}, overridedTopology, options.override);
-        return overridedTopology;
+        if (options.override)
+            return _.merge({}, topology, options.override);
+
+        return topology;
     }
 }
 

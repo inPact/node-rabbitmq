@@ -4,7 +4,6 @@ const debug = require('debug')('tabit:infra:rabbit');
 const verbose = require('debug')('tabit:infra:rabbit:verbose');
 const utils = require('@tabit/utils');
 const lock = utils.lock;
-const ChannelManager = require('../channel_manager');
 
 /**
  * Encapsulates a distributed amqp queue with a single connection

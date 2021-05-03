@@ -17,7 +17,7 @@ describe('send and receive should: ', function () {
         });
         try {
             let received;
-            let queue = broker.createQueue('testBasic');
+            let queue = broker.initQueue('testBasic');
             await queue.consume(data => received = JSON.parse(data));
             await queue.publish({ the: 'entity' });
 
@@ -38,7 +38,7 @@ describe('send and receive should: ', function () {
         });
         try {
             let received;
-            let queue = broker.createQueue('testBasic');
+            let queue = broker.initQueue('testBasic');
             await queue.consume(data => received = JSON.parse(data));
             await queue.publishTo(null, JSON.stringify({ the: 'entity' }), { useBasic: true });
 
@@ -65,13 +65,13 @@ describe('send and receive should: ', function () {
         });
         try {
             let received = [];
-            await broker.createQueue('testBasic', { queueName: 'q1' }).consume(data => {
+            await broker.initQueue('testBasic', { queueName: 'q1' }).consume(data => {
                 received.push(JSON.parse(data))
             });
-            await broker.createQueue('testBasic', { queueName: 'q2' }).consume(data => {
+            await broker.initQueue('testBasic', { queueName: 'q2' }).consume(data => {
                 received.push(JSON.parse(data))
             });
-            await broker.createQueue('testBasic').publish({ the: 'entity' });
+            await broker.initQueue('testBasic').publish({ the: 'entity' });
 
             await Promise.delay(100);
             received.length.should.equal(2);
@@ -95,8 +95,8 @@ describe('send and receive should: ', function () {
         });
         try {
             let received = [];
-            await broker.createQueue('test', 'q1').consume(data => received.push(JSON.parse(data)));
-            let pubQueue = broker.createQueue('test');
+            await broker.initQueue('test', 'q1').consume(data => received.push(JSON.parse(data)));
+            let pubQueue = broker.initQueue('test');
             await pubQueue.publish({ the: 'entity' });
 
             await Promise.delay(100); // wait for pub/sub
@@ -126,7 +126,7 @@ describe('send and receive should: ', function () {
         });
         try {
             let handling = 0;
-            let queue = broker.createQueue('test');
+            let queue = broker.initQueue('test');
             await queue.consume(async x => {
                 handling++;
                 await Promise.delay(PREFETCH * 30);
@@ -158,7 +158,7 @@ describe('send and receive should: ', function () {
         });
         try {
             let handling = 0;
-            let queue = broker.createQueue('test');
+            let queue = broker.initQueue('test');
             await queue.consume(async x => {
                 handling++;
                 await Promise.delay(PREFETCH * 30);

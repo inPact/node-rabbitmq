@@ -8,8 +8,7 @@ const Broker = require('..');
 
 const url = 'amqp://localhost';
 
-describe('Messaging with broker', function() {
-
+describe('Messaging with broker', function () {
     const incomingMessages = new Readable({ objectMode: true, read() { /* Do nothing because no source, we will push */ } });
     const finishMessageEvents = new EventEmitter();
 
@@ -24,37 +23,25 @@ describe('Messaging with broker', function() {
         }
     });
 
-    const queueSection = broker.initQueueSection('testBasicTopic');
+    const queueSection = broker.initQueue('testBasicTopic');
 
-    describe('consume()', function() {
-        it('should throw error when no topic provided with topic exchange', async function() {
-            try {
-                await queueSection.consume(async () => {});
-                throw new Error('consuming on topic-exchange without consume-topic has to fail');
-            } catch (err) {
-                expect(err.message).to.match(/no topic/);
-            }
-        });
-        it('should begin consume topic messages', async function() {
+    describe('prefetch=1 should work as expected:', function () {
+        before(async function () {
             await queueSection.consume(async (message) => {
-                const finished = new Promise(resolve => { finishMessageEvents.once('go', resolve); });
+                const finished = new Promise(resolve => {
+                    finishMessageEvents.once('go', resolve);
+                });
                 incomingMessages.push(message);
                 await finished;
             }, 'system.*');
-        });
-    });
 
-    describe('publishTo()', function() {
-        it('should publish some messages', async function() {
             await queueSection.publishTo('system.15', 'Message 1');
             await queueSection.publishTo('system.16', 'Message 2');
             await queueSection.publishTo('system.17', 'Message 3');
             await queueSection.publishTo('system.18', 'Message 4');
         });
-    });
 
-    describe('prefetch=1 flow:', function() {
-        it('should receive only the first one after a whole 2 seconds because of the first not yet finished', function(done) {
+        it('should receive only the first one after a whole 2 seconds because of the first not yet finished', function (done) {
             const handleIncomingMessages = sinon.stub();
             common.readDataFrom(incomingMessages, handleIncomingMessages, errors => {
                 try {
@@ -62,10 +49,12 @@ describe('Messaging with broker', function() {
                     expect(handleIncomingMessages.callCount).to.equal(1);
                     expect(handleIncomingMessages.firstCall.firstArg).to.equal('Message 1');
                     done();
-                } catch (err) { done(err); }
+                } catch (err) {
+                    done(err);
+                }
             }, 2000);
         });
-        it('should receive the others, once acked (finished)', function(done) {
+        it('should receive the others, once acked (finished)', function (done) {
             const handleIncomingMessages = sinon.spy(message => {
                 finishMessageEvents.emit('go');
             });
@@ -77,13 +66,15 @@ describe('Messaging with broker', function() {
                     expect(handleIncomingMessages.secondCall.firstArg).to.equal('Message 3');
                     expect(handleIncomingMessages.thirdCall.firstArg).to.equal('Message 4');
                     done();
-                } catch (err) { done(err); }
+                } catch (err) {
+                    done(err);
+                }
             }, 1000);
             finishMessageEvents.emit('go');
         });
     })
 
-    after(async function() {
+    after(async function () {
         await common.cleanup(broker, 'test-basic', 'test-basic-topic');
     });
 });
