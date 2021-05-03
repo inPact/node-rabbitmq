@@ -17,11 +17,8 @@ class TopologyBuilder {
      * @returns {Promise.<TResult>}
      */
     async assertTopology(channel, options = {}) {
-        let topology = this.topology;
-        debug(`building topology: `, topology);
-
-        if (options.override)
-            topology = _.merge({}, topology, options.override);
+        debug(`building topology: `, this.topology);
+        const topology = this.getOverrideableTopology(options);
 
         if (this.topology.deadLetter)
             await this.assertDeadLetterExchange(channel, topology.deadLetter);
@@ -59,14 +56,14 @@ class TopologyBuilder {
      * when this instance was created.
      */
     async assertQueue(channel, routingKey, queue, options = {}, queueConfig = this.topology, exchangeConfig = this.topology.exchange) {
-        if (options.override)
-            queueConfig = _.merge({}, queueConfig, options.override);
+        const topology = this.getOverrideableTopology(options, queueConfig);
 
-        _.assign(queueConfig, {
-            deadLetterExchange: queueConfig.deadLetter && queueConfig.deadLetter.dlx,
+        // Where there is no override, there will be a mutation here (I'm not sure why) -- Nati
+        _.assign(topology, {
+            deadLetterExchange: topology.deadLetter && topology.deadLetter.dlx,
         });
 
-        let res = await channel.assertQueue(queue || '', queueConfig);
+        let res = await channel.assertQueue(queue || topology.name || '', topology);
         channel.__queue = res.queue;
 
         if (exchangeConfig) {
@@ -85,6 +82,13 @@ class TopologyBuilder {
             _.assign({ name: config.dlq }, config),
             { name: config.dlx, type: 'fanout' },
             true);
+    }
+
+    getOverrideableTopology(options = {}, topology = this.topology) {
+        if (options.override)
+            return _.merge({}, topology, options.override);
+
+        return topology;
     }
 }
 

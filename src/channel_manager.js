@@ -7,9 +7,12 @@ const Retry = utils.Retry;
 
 class ChannelManager {
     /**
-     * @param config - the queue configuration to assert.
-     * @param [queueName] - the queue to publish to and consume from. If not provided, the @config.name will be used.
-     * @param logger
+     * Create channel manager
+     * @param {Object} config The queue section configuration to assert.
+     * @param {Object} [options] Optional options
+     * @param {Object} [options.logger] Logger to log
+     * @param {TopologyBuilder} [options.topologyBuilder] The associated topology builder
+     * @param {ConnectionManager} [options.connectionManager] The associated connection manager
      */
     constructor(config, { logger = console, topologyBuilder, connectionManager } = {}) {
         this.config = config;
@@ -90,9 +93,10 @@ class ChannelManager {
 
     /**
      *
-     * @param [channelType] {String}
-     * @param [options] {Object}
-     * @param [options.override] {Object} - any desired overrides of the default configuration that was provided
+     * @param {"pub"|"sub"} [channelType] - indicates whether this channel should be created as publish channel
+     * (with auto-confirm) or a subscribe channel (without auto-confirm)
+     * @param {Object} [options]
+     * @param {Object}[options.override] - any desired overrides of the default configuration that was provided
      * when this instance was created.
      * @returns {*}
      * @private
@@ -123,11 +127,13 @@ class ChannelManager {
 
     /** @private */
     _manageChannel(channel, channelType) {
+
+        channel.getDescriptor = function () {
+            return descriptor(this);
+        };
+
         if (channelType) {
             channel.__type = channelType;
-            channel.getDescriptor = function () {
-                return descriptor(this);
-            };
             this.channels[channelType] = channel;
         }
 

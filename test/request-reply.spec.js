@@ -17,7 +17,7 @@ describe('request-reply should: ', function () {
         });
         try {
             let serverReceived;
-            let server = broker.createQueue('testReplyTo');
+            let server = broker.initQueue('testReplyTo');
             console.log(`======================================= server: consuming from test-reply-to =======================================`);
             await server.consume(async (data, props) => {
                 console.log(`======================================= server: received message =======================================`);
@@ -27,7 +27,7 @@ describe('request-reply should: ', function () {
             });
 
 
-            let client = broker.createQueue('testReplyTo');
+            let client = broker.initQueue('testReplyTo');
             console.log(`======================================= client: PUBLISHING to test-reply-to =======================================`);
             let response = await client.publish({ the: 'entity' });
 
@@ -51,12 +51,12 @@ describe('request-reply should: ', function () {
             }
         });
         try {
-            let server = broker.createQueue('testReplyTo');
+            let server = broker.initQueue('testReplyTo');
             await server.consume(async (data, props) => {
                 return { ok: 1 };
             });
 
-            let client = broker.createQueue('testReplyTo');
+            let client = broker.initQueue('testReplyTo');
             await Promise.map(new Array(10).fill(1), async x => {
                 let response = await client.publish({ the: 'entity' });
                 response.should.deep.equal({ ok: 1 });
@@ -78,13 +78,13 @@ describe('request-reply should: ', function () {
         });
         try {
             let serverReceived;
-            let server = broker.createQueue('testReplyTo');
+            let server = broker.initQueue('testReplyTo');
             await server.consume(async (data, props) => {
                 await Promise.delay(50);
                 serverReceived = JSON.parse(data);
             });
 
-            let client = broker.createQueue('testReplyTo');
+            let client = broker.initQueue('testReplyTo');
             let response = await client.publish({ the: 'entity' });
 
             should.exist(serverReceived, `message was not received`);
