@@ -28,8 +28,10 @@ class TopologyBuilder {
     }
 
     async assertExchangeAndQueue(channel, queueConfig = this.topology, exchangeConfig = this.topology.exchange) {
-        if (exchangeConfig && exchangeConfig.name)
-            await channel.assertExchange(exchangeConfig.name, exchangeConfig.type);
+        if (exchangeConfig && exchangeConfig.name) {
+            const exchangeOptions = _.omit(exchangeConfig, ['type', 'name']);
+            await channel.assertExchange(exchangeConfig.name, exchangeConfig.type, exchangeOptions);
+        }
 
         if (_.get(exchangeConfig, 'type') === 'topic' ||
             _.get(exchangeConfig, 'bindQueue') === false)

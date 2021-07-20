@@ -1,6 +1,10 @@
 const Promise = require('bluebird');
 const { Readable } = require('stream');
 const _ = require('lodash');
+const superagent = require('superagent');
+
+const API_URL = 'http://localhost:15672/api';
+const API_AUTH_ARGS = ['guest', 'guest'];
 
 module.exports = {
     async cleanup(broker, exchanges, ...queues) {
@@ -66,4 +70,10 @@ module.exports = {
             readable.once('data', innerHandler);
         }
     },
+
+    async getFromApi(...pathParts) {
+        let response = await superagent.get(`${API_URL}/${_.join(pathParts, '/')}`).auth(...API_AUTH_ARGS);
+        return response.body;
+    },
+
 };

@@ -2,10 +2,9 @@ const _ = require('lodash');
 const should = require('chai').should();
 const Broker = require('..');
 const url = 'amqp://localhost';
-const API_URL = 'http://localhost:15672/api';
-const superagent = require('superagent');
 const common = require('./common');
-const API_AUTH_ARGS = ['guest', 'guest'];
+
+const { getFromApi } = common;
 
 describe('topology should: ', function () {
     it('accept section overrides', async function () {
@@ -137,8 +136,3 @@ describe('topology should: ', function () {
     });
 
 });
-
-async function getFromApi(...pathParts) {
-    let response = await superagent.get(`${API_URL}/${_.join(pathParts, '/')}`).auth(...API_AUTH_ARGS);
-    return response.body;
-}
