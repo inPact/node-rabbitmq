@@ -24,8 +24,8 @@ describe('send dellayed message: ', function() {
                     name: 'test-delayed',
                     exchange: {
                         name: 'topic.delay',
-                        type: 'x-delayed-message',
-                        arguments: { 'x-delayed-type': 'topic' }
+                        type: 'topic',
+                        delayedMessages: true,
                     },
                 }
             }
@@ -50,7 +50,7 @@ describe('send dellayed message: ', function() {
     });
 
     it('should publish with delay', async function() {
-        await queueSection.publishTo('retry.86.order', 'Message 1', { headers: { 'x-delay': 12000 } });
+        await queueSection.publishWithDelayTo('retry.86.order', 'Message 1', { headers: { 'x-foo': 'bar' } }, 12000);
     });
 
 

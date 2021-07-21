@@ -29,8 +29,13 @@ class TopologyBuilder {
 
     async assertExchangeAndQueue(channel, queueConfig = this.topology, exchangeConfig = this.topology.exchange) {
         if (exchangeConfig && exchangeConfig.name) {
-            const exchangeOptions = _.omit(exchangeConfig, ['type', 'name']);
-            await channel.assertExchange(exchangeConfig.name, exchangeConfig.type, exchangeOptions);
+            if (exchangeConfig.delayedMessages) {
+                await channel.assertExchange(exchangeConfig.name, 'x-delayed-message', {
+                    arguments: { 'x-delayed-type': exchangeConfig.type }
+                });
+            } else {
+                await channel.assertExchange(exchangeConfig.name, exchangeConfig.type);
+            }
         }
 
         if (_.get(exchangeConfig, 'type') === 'topic' ||

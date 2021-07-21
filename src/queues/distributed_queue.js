@@ -176,6 +176,22 @@ class Queue {
         })
     }
 
+    /**
+     * Wrapper around 'publishTo'. Will send delayed message.
+     * If publishing to an exchange that was not declared with 'delayedMessages' it will do nothing
+     * and the message will et delivered immediately.
+     * @param {string} routingKey the name of the queue or topic to publish to
+     * @param {string} message the message to publish
+     * @param {*} [options] the options to attach to the published message
+     * @param {number} delay Milliseconds to delay the message
+     * @returns {PromiseLike<any>}
+     */
+    async publishWithDelayTo(routingKey, message, options, delay) {
+        if (!delay || !_.isNumber(delay)) throw new Error('cannot publish with delay without delay param (ms)');
+        const newOptions = _.merge({}, options, { headers: { 'x-delay': delay } });
+        return this.publishTo(routingKey, message, newOptions);
+    }
+
     _restartConsumers() {
         if (!this.consumers.length)
             return debug(`Not restarting consumers. No consumers in queue`);
