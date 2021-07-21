@@ -9,7 +9,11 @@ addons:
   apt:
     packages:
       - rabbitmq-server
+      - wget
 script:
+  - cd $(rabbitmqctl environment | sed -n 's/.*plugins_dir\s*,\s*"\([^"]*\)".*/\1/p'); \
+    sudo wget -q https://github.com/rabbitmq/rabbitmq-delayed-message-exchange/releases/download/v${DELAY_PLUGIN_VERSION}/rabbitmq_delayed_message_exchange-${DELAY_PLUGIN_VERSION}.ez
   - sudo rabbitmq-plugins enable rabbitmq_management
+  - sudo rabbitmq-plugins enable rabbitmq_delayed_message_exchange
   #- sleep 2 # wait for management plugin to properly start up
   - yarn test

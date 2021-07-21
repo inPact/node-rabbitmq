@@ -11,6 +11,8 @@ const DELAY_TOPIC_NAME = 'topic.delay';
 
 describe('send dellayed message: ', function() {
 
+    this.timeout(0);
+
     let broker, queueSection;
     const incomingMessages = new Readable({ objectMode: true, read() { /* Do nothing because no source, we will push */ } });
 
@@ -48,18 +50,28 @@ describe('send dellayed message: ', function() {
     });
 
     it('should publish with delay', async function() {
-        await queueSection.publishTo('retry.86.order', 'Message 1', { headers: { 'x-delay': 10000 } });
+        await queueSection.publishTo('retry.86.order', 'Message 1', { headers: { 'x-delay': 12000 } });
     });
 
 
-    it('should receive after delay', function(done) {
-        const handleIncomingMessages = sinon.spy(msgPackage => {
-            expect(msgPackage).to.have.property('message');
-        });
+    it('should not receive message during delay', function(done) {
+        const handleIncomingMessages = sinon.stub();
         readDataFrom(incomingMessages, handleIncomingMessages, errors => {
-            expect(errors).to.not.be.ok;
+            expect(handleIncomingMessages.callCount).to.equal(0);
             done();
-        }, 12000);
+        }, 10000);
+    });
+
+    it('should receive message after delay', function(done) {
+        const handleIncomingMessages = sinon.stub();
+        readDataFrom(incomingMessages, handleIncomingMessages, errors => {
+            expect(handleIncomingMessages.callCount).to.equal(1);
+            const firstCallArg = handleIncomingMessages.firstCall.args[0];
+            expect(firstCallArg).to.have.property('message');
+            expect(firstCallArg.message).to.equal('Message 1');
+            expect(firstCallArg).to.have.property('headers');
+            done();
+        }, 4000);
     });
 
     after(async function rabbitCleanup() {
