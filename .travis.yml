@@ -13,6 +13,8 @@ addons:
 script:
   - cd $(sudo rabbitmqctl environment | sed -n 's/.*plugins_dir\s*,\s*"\([^"]*\)".*/\1/p');
     sudo wget -q https://github.com/rabbitmq/rabbitmq-delayed-message-exchange/releases/download/v3.8.0/rabbitmq_delayed_message_exchange-3.8.0.ez
+  - cd $(sudo rabbitmqctl environment | sed -n 's/.*plugins_dir\s*,\s*"\([^"]*\)".*/\1/p'); pwd; ls -la
+  - cd $(sudo rabbitmqctl environment | sed -n 's/.*plugins_dir\s*,\s*"\([^"]*\)".*/\1/p'); sudo chmod 777 rabbitmq_delayed_message_exchange-3.8.0.ez
   - sudo rabbitmq-plugins enable rabbitmq_management
   - sudo rabbitmq-plugins enable rabbitmq_delayed_message_exchange
   #- sleep 2 # wait for management plugin to properly start up
