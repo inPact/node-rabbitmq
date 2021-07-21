@@ -28,5 +28,12 @@ before_install:
   - sudo mv docker-compose /usr/local/bin
 
 script:
+
+  # Start rabbit:
   - docker-compose -f docker/docker-compose.yml up -d
+
+  # Wait for the Rabbit to be up. Amazing method! thank you: https://stackoverflow.com/a/45637681
+  - timeout 30s docker-compose -f docker/docker-compose.yml logs -f | grep -q 'Server startup complete;'
+
+  # run the tests:
   - yarn test
