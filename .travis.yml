@@ -1,7 +1,12 @@
 language: node_js
+
 node_js:
   - "stable"
   - 8
+
+services:
+  - docker
+
 cache:
   directories:
     - "node_modules"
@@ -13,19 +18,15 @@ cache:
 #       - rabbitmq-server
 #       - wget
 
+env:
+  - DELAY_VERSION=3.8.0 DOCKER_COMPOSE_VERSION=1.4.2
+
 before_install:
-  - sudo apt-get update
-  - wget https://github.com/rabbitmq/rabbitmq-server/releases/download/v3.8.19/rabbitmq-server_3.8.19-1_all.deb
-  - sudo dpkg -i rabbitmq-server_3.8.19-1_all.deb
-  - cd $(sudo rabbitmqctl environment | sed -n 's/.*plugins_dir\s*,\s*"\([^"]*\)".*/\1/p');
-    sudo wget -q https://github.com/rabbitmq/rabbitmq-delayed-message-exchange/releases/download/v3.8.0/rabbitmq_delayed_message_exchange-3.8.0.ez;
-    echo "=========================";
-    echo "Rabbit plugins directory:";
-    echo "=========================";
-    pwd;
-    ls -la
-  - sudo rabbitmq-plugins enable rabbitmq_management
-  - sudo rabbitmq-plugins enable rabbitmq_delayed_message_exchange
+  - sudo rm /usr/local/bin/docker-compose
+  - curl -L https://github.com/docker/compose/releases/download/${DOCKER_COMPOSE_VERSION}/docker-compose-`uname -s`-`uname -m` > docker-compose
+  - chmod +x docker-compose
+  - sudo mv docker-compose /usr/local/bin
 
 script:
+  - docker-compose -f docker/docker-compose.yml up -d
   - yarn test
