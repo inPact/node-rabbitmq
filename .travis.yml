@@ -5,13 +5,18 @@ node_js:
 cache:
   directories:
     - "node_modules"
-addons:
-  apt:
-    packages:
-      - rabbitmq-server
-      - wget
+
+# Rabbit at official repos. 3.5.x ...
+# addons:
+#   apt:
+#     packages:
+#       - rabbitmq-server
+#       - wget
 
 before_install:
+  - sudo apt-get update
+  - wget https://github.com/rabbitmq/rabbitmq-server/releases/download/v3.8.19/rabbitmq-server_3.8.19-1_all.deb
+  - sudo dpkg -i rabbitmq-server_3.8.19-1_all.deb
   - cd $(sudo rabbitmqctl environment | sed -n 's/.*plugins_dir\s*,\s*"\([^"]*\)".*/\1/p');
     sudo wget -q https://github.com/rabbitmq/rabbitmq-delayed-message-exchange/releases/download/v3.8.0/rabbitmq_delayed_message_exchange-3.8.0.ez;
     echo "=========================";
