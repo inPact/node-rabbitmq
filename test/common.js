@@ -60,6 +60,7 @@ module.exports = {
         } else {
             // Fetch only one chunk:
             const innerHandler = function innerHandler() {
+                readable.removeAllListeners();
                 try {
                     handler(...arguments);
                     cb();

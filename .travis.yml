@@ -19,7 +19,8 @@ cache:
 #       - wget
 
 env:
-  - DELAY_VERSION=3.8.0 DOCKER_COMPOSE_VERSION=1.29.2
+  - DELAY_VERSION=3.8.0
+    DOCKER_COMPOSE_VERSION=1.29.2
 
 before_install:
   # Install docker-compose

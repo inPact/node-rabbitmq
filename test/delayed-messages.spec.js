@@ -1,81 +1,181 @@
 const { expect } = require('chai');
 const { Readable } = require('stream');
 const sinon = require('sinon');
-const { getFromApi, cleanup, readDataFrom } = require('./common');
+const common = require('./common');
 const Broker = require('..');
-const util = require('util');
 
 const url = 'amqp://localhost';
 
-const DELAY_TOPIC_NAME = 'topic.delay';
+const DELAY_EXCHANGE_NAME = 'topic.delay';
+const QUEUE_NAME = 'test-delayed';
 
-describe('send dellayed message: ', function() {
+function getTestDelayableBroker() {
+    return new Broker({
+        url,
+        queues: {
+            testDelay: {
+                name: QUEUE_NAME,
+                exchange: {
+                    name: DELAY_EXCHANGE_NAME,
+                    type: 'topic',
+                    delayedMessages: true,
+                },
+            }
+        }
+    });
+}
 
-    this.timeout(0);
+async function cleanup() {
+    const queues = await common.getFromApi('queues');
+    const exchanges = await common.getFromApi('exchanges');
+    const exchangeName = exchanges.find(x => x.name === DELAY_EXCHANGE_NAME) ? DELAY_EXCHANGE_NAME : null;
+    const queueName = queues.find(q => q.name === QUEUE_NAME) ? QUEUE_NAME : null;
+    await common.cleanup(getTestDelayableBroker(), exchangeName, queueName);
+}
 
-    let broker, queueSection;
+describe('Delayed messages', function() {
+
     const incomingMessages = new Readable({ objectMode: true, read() { /* Do nothing because no source, we will push */ } });
 
-    before(async function createExchange() {
-        broker = new Broker({
-            url,
-            queues: {
-                testDelay: {
-                    name: 'test-delayed',
-                    exchange: {
-                        name: 'topic.delay',
-                        type: 'topic',
-                        delayedMessages: true,
-                    },
+    before('stopping logging', async function() {
+        sinon.stub(console, 'log');
+        sinon.stub(console, 'info');
+    });
+
+    describe('special exchange for delayed messages', function() {
+
+        before('cleanup', cleanup);
+
+        let exchanges = [];
+
+        before('creating', async function() {
+            const queueAdapter = getTestDelayableBroker().initQueue('testDelay');
+            await queueAdapter.consume(() => {}, 'blabla-topic'); // Without any consume or publish it won't get created..
+        });
+
+        before('get the exchanges', async function() {
+            exchanges = await common.getFromApi('exchanges');
+        });
+
+        it('should get created (lazy)', async function() {
+            const topicDelayExchange = exchanges.find(x => x.name === DELAY_EXCHANGE_NAME);
+            expect(topicDelayExchange).to.be.ok;
+        });
+
+        it('should be a special message delay exchange', async function() {
+            const topicDelayExchange = exchanges.find(x => x.name === DELAY_EXCHANGE_NAME);
+            expect(topicDelayExchange).to.have.property('type');
+            expect(topicDelayExchange.type).to.equal('x-delayed-message');
+            expect(topicDelayExchange).to.have.property('arguments');
+            expect(topicDelayExchange.arguments).to.have.property('x-delayed-type');
+            expect(topicDelayExchange.arguments['x-delayed-type']).to.equal('topic');
+        });
+
+    });
+
+    describe('delayed message, publishing without delay', function () {
+
+        let queueAdapter;
+        this.timeout(500);
+        before('cleanup', cleanup);
+
+        before('creating exchange and consuming', async function() {
+            queueAdapter = getTestDelayableBroker().initQueue('testDelay');
+            await queueAdapter.consume((message, { headers }) => {
+                incomingMessages.push({ message, headers });
+            }, 'test.*.delay.topic');
+        });
+
+        before('publishing', async function() {
+            await queueAdapter.publishTo('test.no.delay.topic', 'hi there 1', { headers: { 'x-what': 'foo' } });
+        });
+
+        it('should receive the message immediately', function(done) {
+            const handleMessage = sinon.stub();
+            common.readDataFrom(incomingMessages, handleMessage, err => {
+                try {
+                    expect(err).to.not.be.ok;
+                    expect(handleMessage.callCount).to.equal(1);
+                    const firstCallArg = handleMessage.firstCall.args[0];
+                    expect(firstCallArg).to.have.property('message');
+                    expect(firstCallArg.message).to.equal('hi there 1');
+                    expect(firstCallArg).to.have.property('headers');
+                    expect(firstCallArg.headers).to.deep.equal({ 'x-what': 'foo' });
+                    done();
+                } catch(err) {
+                    done(err);
                 }
-            }
+            });
         });
     });
 
-    before(async function cleanUpIfNeeded() {
-        const exchanges = await getFromApi('exchanges');
-        const topicDelayExchange = exchanges.find(x => x.name === DELAY_TOPIC_NAME);
-        if (topicDelayExchange) await cleanup(broker, DELAY_TOPIC_NAME);
+    describe('delayed message, publish with delay', function () {
+
+        let queueAdapter;
+        this.timeout(4000);
+        this.slow(4000);
+
+        before('cleanup', cleanup);
+
+        before('creating exchange', async function() {
+            queueAdapter = getTestDelayableBroker().initQueue('testDelay');
+        });
+
+        before('consuming', async function() {
+            await queueAdapter.consume((message, { headers }) => {
+                incomingMessages.push({ message, headers });
+            }, 'test.*.delay.topic');
+        });
+
+        before('publishing', async function() {
+            await queueAdapter.publishTo('test.no.delay.topic', 'hi there 2', {
+                delay: 2000,
+                headers: {
+                    'x-what': 'bar'
+                },
+            });
+        });
+
+        it('should not receive the message during delay', function(done) {
+            const handleMessage = sinon.stub();
+            common.readDataFrom(incomingMessages, handleMessage, errors => {
+                try {
+                    expect(errors).to.not.be.ok;
+                    expect(handleMessage.callCount, 'message was not delayed').to.equal(0);
+                    done();
+                } catch (err) {
+                    done(err);
+                }
+            }, 1700);
+        });
+
+        it('should receive the message after delay', function(done) {
+            const handleMessage = sinon.stub();
+            common.readDataFrom(incomingMessages, handleMessage, errors => {
+                try {
+                    expect(errors).to.not.be.ok;
+                    expect(handleMessage.callCount).to.equal(1);
+                    const firstCallArg = handleMessage.firstCall.args[0];
+                    expect(firstCallArg).to.have.property('message');
+                    expect(firstCallArg.message).to.equal('hi there 2');
+                    expect(firstCallArg).to.have.property('headers');
+                    expect(firstCallArg.headers).to.deep.equal({
+                        'x-delay': 2000,
+                        'x-what': 'bar'
+                    })
+                    done();
+                } catch (err) {
+                    done(err);
+                }
+            });
+        });
     });
 
-    it('should create delayed messages exchange by consuming (lazy)', async function() {
-        queueSection = broker.initQueue('testDelay');
-        await queueSection.consume(async (message, { headers }, { routingKey }) => {
-            // console.log('Arrived!', typeof message, routingKey, util.inspect(JSON.parse(message)), util.inspect(headers));
-            incomingMessages.push({ message, headers, routingKey });
-        }, 'retry.*.order');
-        const exchanges = await getFromApi('exchanges');
-        const topicDelayExchange = exchanges.find(x => x.name === DELAY_TOPIC_NAME);
-        expect(topicDelayExchange).to.be.ok;
-    });
 
-    it('should publish with delay', async function() {
-        await queueSection.publishWithDelayTo('retry.86.order', 'Message 1', { headers: { 'x-foo': 'bar' } }, 12000);
-    });
-
-
-    it('should not receive message during delay', function(done) {
-        const handleIncomingMessages = sinon.stub();
-        readDataFrom(incomingMessages, handleIncomingMessages, errors => {
-            expect(handleIncomingMessages.callCount).to.equal(0);
-            done();
-        }, 10000);
-    });
-
-    it('should receive message after delay', function(done) {
-        const handleIncomingMessages = sinon.stub();
-        readDataFrom(incomingMessages, handleIncomingMessages, errors => {
-            expect(handleIncomingMessages.callCount).to.equal(1);
-            const firstCallArg = handleIncomingMessages.firstCall.args[0];
-            expect(firstCallArg).to.have.property('message');
-            expect(firstCallArg.message).to.equal('Message 1');
-            expect(firstCallArg).to.have.property('headers');
-            done();
-        }, 4000);
-    });
-
-    after(async function rabbitCleanup() {
-        await cleanup(broker, DELAY_TOPIC_NAME);
+    after(async function () {
+        await cleanup();
+        console.log.restore();
+        console.info.restore();
     });
 
 });
