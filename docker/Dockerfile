@@ -1,4 +1,4 @@
-FROM rabbitmq:management
+FROM rabbitmq:3.8-management
 
 ARG DELAY_PLUGIN_VERSION=3.8.0
 
