@@ -52,7 +52,7 @@ describe('Messaging with broker', function () {
                 } catch (err) {
                     done(err);
                 }
-            }, 2000);
+            }, 200);
         });
         it('should receive the others, once acked (finished)', function (done) {
             const handleIncomingMessages = sinon.spy(message => {
@@ -69,7 +69,7 @@ describe('Messaging with broker', function () {
                 } catch (err) {
                     done(err);
                 }
-            }, 1000);
+            }, 200);
             finishMessageEvents.emit('go');
         });
     })
