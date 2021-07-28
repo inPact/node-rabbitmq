@@ -135,15 +135,15 @@ class Queue {
     }
 
     /**
-     * @param routingKey {string} - the name of the queue or topic to publish to
-     * @param message {string} - the message to publish
-     * @param channel - override default amqplib channel
-     * @param useBasic {Boolean}
-     * @param [options] - the options to attach to the published message
-     * @param [options.persistent] - whether published messages should be persistent or not;
+     * @param {string} routingKey the name of the queue or topic to publish to.
+     * @param {string} message the message to publish.
+     * @param {Object} [options={}] the options to attach to the published message.
+     * @param {Object} [options.channel] override default amqplib channel.
+     * @param {boolean} [options.useBasic]
+     * @param {boolean} [options.persistent] whether published messages should be persistent or not
      * defaults to true if not specified.
-     * @param done - for internal use
-     * @returns {*}
+     * @param {boolean} [options.done] for internal use.
+     * @returns {PromiseLike<any>}
      */
     async publishTo(routingKey, message, { channel, useBasic, ...options } = {}) {
         return new Promise(async (resolve, reject) => {
@@ -152,6 +152,15 @@ class Queue {
 
                 if (!options || !_.isBoolean(options.persistent))
                     options = _.assign({}, options, { persistent: true });
+
+                if (options.delay) {
+                    if (!_.isNumber(options.delay)) throw new Error('options.delay must be a number');
+                    if (options.delay < 0) throw new Error('options.delay is negative, cannot travel to the past');
+                    if (!_.get(this.config, 'exchange.delayedMessages')) {
+                        throw new Error('to publish a delayed message please configure the exchange with delayedMessage');
+                    }
+                    options = _.merge({}, _.omit(options, 'delay'), { headers: { 'x-delay': options.delay } });
+                }
 
                 if (!channel)
                     channel = await this.channelManager.getPublishChannel();

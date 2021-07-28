@@ -2,10 +2,7 @@ const _ = require('lodash');
 const should = require('chai').should();
 const Broker = require('..');
 const url = 'amqp://localhost';
-const API_URL = 'http://localhost:15672/api';
-const superagent = require('superagent');
 const common = require('./common');
-const API_AUTH_ARGS = ['guest', 'guest'];
 
 describe('topology should: ', function () {
     it('accept section overrides', async function () {
@@ -28,7 +25,7 @@ describe('topology should: ', function () {
                 }
             }).consume(x => x);
 
-            let response = await getFromApi('exchanges');
+            let response = await common.getFromApi('exchanges');
             let exchangeNames = response.map(x => x.name);
             exchangeNames.should.include('custom-exchange-name', exchangeNames);
             exchangeNames.should.not.include('test');
@@ -61,8 +58,8 @@ describe('topology should: ', function () {
         try {
             await broker.initQueue('test').consume(x => x);
 
-            let exchanges = await getFromApi('exchanges');
-            let queues = await getFromApi('queues');
+            let exchanges = await common.getFromApi('exchanges');
+            let queues = await common.getFromApi('queues');
 
             let exchangeNamess = exchanges.map(x => x.name);
             exchangeNamess.should.include('main-x', exchangeNamess);
@@ -109,8 +106,8 @@ describe('topology should: ', function () {
             await broker.initQueue('test').consume(x => x);
             await broker.initQueue('test', { queueName: 'overriden' }).consume(x => x);
 
-            let exchanges = await getFromApi('exchanges');
-            let queues = await getFromApi('queues');
+            let exchanges = await common.getFromApi('exchanges');
+            let queues = await common.getFromApi('queues');
 
             let exchangeNamess = exchanges.map(x => x.name);
             exchangeNamess.should.include('main-x', exchangeNamess);
@@ -137,8 +134,3 @@ describe('topology should: ', function () {
     });
 
 });
-
-async function getFromApi(...pathParts) {
-    let response = await superagent.get(`${API_URL}/${_.join(pathParts, '/')}`).auth(...API_AUTH_ARGS);
-    return response.body;
-}
