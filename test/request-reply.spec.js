@@ -96,4 +96,33 @@ describe('request-reply should: ', function () {
         }
     });
 
+    it('return error to client when server fails to process request', async function () {
+        let broker = new Broker({
+            url,
+            queues: {
+                testReplyTo: {
+                    name: 'test-reply-to',
+                    requestReply: true
+                }
+            }
+        });
+        try {
+            let server = broker.initQueue('testReplyTo');
+            console.log(`======================================= server: consuming from test-reply-to =======================================`);
+            await server.consume(async (data, props) => {
+                console.log(`======================================= server: received message - throwing error =======================================`);
+                throw new Error('mock error from test')
+            });
+
+            let client = broker.initQueue('testReplyTo');
+            console.log(`======================================= client: PUBLISHING to test-reply-to =======================================`);
+            let response = await client.publish({ the: 'entity' });
+            console.log(`========== client: received response: ${JSON.stringify(response, null, 2)} ==========`);
+
+            should.exist(response.error);
+            should.exist(response.error.message);
+        } finally {
+            await common.cleanup(broker, [], 'test-reply-to');
+        }
+    });
 });
