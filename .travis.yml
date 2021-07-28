@@ -1,15 +1,41 @@
 language: node_js
+
 node_js:
   - "stable"
   - 8
+
+services:
+  - docker
+
 cache:
   directories:
     - "node_modules"
-addons:
-  apt:
-    packages:
-      - rabbitmq-server
+
+# Rabbit at official repos. 3.5.x ...
+# addons:
+#   apt:
+#     packages:
+#       - rabbitmq-server
+#       - wget
+
+env:
+  - DELAY_VERSION=3.8.0
+    DOCKER_COMPOSE_VERSION=1.29.2
+
+before_install:
+
+  # Install docker-compose
+  - sudo rm /usr/local/bin/docker-compose
+  - curl -L https://github.com/docker/compose/releases/download/${DOCKER_COMPOSE_VERSION}/docker-compose-`uname -s`-`uname -m` > docker-compose
+  - chmod +x docker-compose
+  - sudo mv docker-compose /usr/local/bin
+
+  # Start rabbit:
+  - docker-compose -f docker/docker-compose.yml up -d
+
+  # Wait for the Rabbit to be up. Amazing method! thank you: https://stackoverflow.com/a/45637681
+  - timeout 30s docker-compose -f docker/docker-compose.yml logs -f | grep -q 'Server startup complete;'
+
 script:
-  - sudo rabbitmq-plugins enable rabbitmq_management
-  #- sleep 2 # wait for management plugin to properly start up
+  # run the tests:
   - yarn test

@@ -1,3 +1,6 @@
+## NEXT
+* [TAB-12547] Support of delayed messages using RabbitMQ extension
+
 ## 3.0.0
 * BREAKING CHANGES: 
   * change "createQueue" to "initQueue"
