@@ -61,7 +61,6 @@ describe('request-reply should: ', function () {
     it('send and receive via direct reply-to queue without response', async function () {
         let serverReceived;
         await server.consume(async (data, props) => {
-            await Promise.delay(50);
             serverReceived = JSON.parse(data);
         });
 
