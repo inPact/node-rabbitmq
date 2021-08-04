@@ -110,10 +110,7 @@ describe('Delayed messages', function() {
     });
 
     describe('delayed message, publish with delay', function () {
-
         let queueAdapter;
-        this.timeout(4000);
-        this.slow(4000);
 
         before('cleanup', cleanup);
 
@@ -129,7 +126,7 @@ describe('Delayed messages', function() {
 
         before('publishing', async function() {
             await queueAdapter.publishTo('test.no.delay.topic', 'hi there 2', {
-                delay: 2000,
+                delay: 500,
                 headers: {
                     'x-what': 'bar'
                 },
@@ -146,7 +143,7 @@ describe('Delayed messages', function() {
                 } catch (err) {
                     done(err);
                 }
-            }, 1700);
+            }, 300);
         });
 
         it('should receive the message after delay', function(done) {
@@ -160,7 +157,7 @@ describe('Delayed messages', function() {
                     expect(firstCallArg.message).to.equal('hi there 2');
                     expect(firstCallArg).to.have.property('headers');
                     expect(firstCallArg.headers).to.deep.equal({
-                        'x-delay': 2000,
+                        'x-delay': 500,
                         'x-what': 'bar'
                     })
                     done();
