@@ -1,5 +1,6 @@
 ### NEXT
 * Return error response if RPC handler throws an error (instead of never responding)
+* revert @tabit/utils version to ros-compatible version
 
 ## 3.1.0
 * Support of delayed messages using RabbitMQ extension
