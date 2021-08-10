@@ -1,4 +1,4 @@
-### NEXT
+## 3.2.0
 * Return error response if RPC handler throws an error (instead of never responding)
 * revert @tabit/utils version to ros-compatible version
 
