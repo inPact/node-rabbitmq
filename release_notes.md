@@ -1,7 +1,11 @@
+## 3.2.0
+* Return error response if RPC handler throws an error (instead of never responding)
+* revert @tabit/utils version to ros-compatible version
+
 ## 3.1.0
 * Support of delayed messages using RabbitMQ extension
 
-## 3.0.0
+# 3.0.0
 * BREAKING CHANGES: 
   * change "createQueue" to "initQueue"
   * use queue-name from topology-configuration if no queue-name was provided in the options to "assertQueue" method  

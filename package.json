@@ -1,6 +1,6 @@
 {
   "name": "@tabit/rabbitmq",
-  "version": "3.1.0",
+  "version": "3.2.0",
   "main": "index.js",
   "repository": {
     "type": "git",
@@ -15,7 +15,7 @@
     "test": "mocha"
   },
   "dependencies": {
-    "@tabit/utils": "^4.0.2",
+    "@tabit/utils": "^3.7.2",
     "amqplib": "^0.6.0",
     "bluebird": "^3.7.2",
     "debug": "^4.2.0",
