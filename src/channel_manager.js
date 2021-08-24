@@ -44,9 +44,9 @@ class ChannelManager {
 
     /**
      * @param topic
-     * @param [options] {Object}
-     * @param [options.name] {String}
-     * @param [options.override] {Object} - any desired overrides of the default configuration that was provided
+     * @param {Object} [options]
+     * @param {String} [options.name]
+     * @param {Object} [options.override] - any desired overrides of the default configuration that was provided
      * when this instance was created.
      * @returns {*}
      */
@@ -68,9 +68,9 @@ class ChannelManager {
     /**
      *
      * @param topic
-     * @param [options] {Object}
-     * @param [options.name] {String}
-     * @param [options.override] {Object} - any desired overrides of the default configuration that was provided
+     * @param {Object} [options]
+     * @param {String} [options.name]
+     * @param {Object} [options.override] - any desired overrides of the default configuration that was provided
      * when this instance was created.
      * @private
      */

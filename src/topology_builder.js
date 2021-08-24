@@ -11,8 +11,8 @@ class TopologyBuilder {
      * Creates the topology matching {@link config}. If a dead letter queue is defined in {@link config}, first creates
      * the dlq.
      * @param channel
-     * @param [options] {Object}
-     * @param [options.override] {Object} - any desired overrides of the default configuration that was provided
+     * @param {Object} [options]
+     * @param {Object} [options.override] - any desired overrides of the default configuration that was provided
      * when this instance was created.
      * @returns {Promise.<TResult>}
      */
@@ -58,8 +58,8 @@ class TopologyBuilder {
      * @param queue
      * @param queueConfig
      * @param exchangeConfig
-     * @param [options] {Object}
-     * @param [options.override] {Object} - any desired overrides of the default configuration that was provided
+     * @param {Object} [options]
+     * @param {Object} [options.override] - any desired overrides of the default configuration that was provided
      * when this instance was created.
      */
     async assertQueue(channel, routingKey, queue, options = {}, queueConfig = this.topology, exchangeConfig = this.topology.exchange) {

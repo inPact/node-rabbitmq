@@ -33,19 +33,19 @@ class Queue {
 
     /**
      *
-     * @param handler {Function} - a function that is called for each received message, accepting two parameters:
+     * @param {Function} handler - a function that is called for each received message, accepting two parameters:
      * 1. the received message
      * 2. additional properties associated with the received messages
-     * @param topic
+     * @param {String} [topic]
      * @param channel - override default amqplib channel
-     * @param [options] {Object}
-     * @param [options.name] {String}
-     * @param [options.limit] {Number} - the prefetch to use vis-a-vis rabbit MQ
-     * @param [options.maxRetries] {Number} - the max number of retries if {@param options.requeueToTail} is true.
-     * @param [options.requeueToTail] {Boolean} - true to requeue message to tail of queue if {@param handler} fails.
+     * @param {Object} [options]
+     * @param {String} [options.name]
+     * @param {Number} [options.limit] - the prefetch to use vis-a-vis rabbit MQ
+     * @param {Number} [options.maxRetries] - the max number of retries if {@param options.requeueToTail} is true.
+     * @param {Boolean} [options.requeueToTail] - true to requeue message to tail of queue if {@param handler} fails.
      * After a message is requeued it will be acked. Defaults to false. Messages will be requeued at most
      * {@param options.maxRetries} times, after which they will be nacked.
-     * @param [options.override] {Object} - any desired overrides of the default configuration that was provided
+     * @param {Object} [options.override] - any desired overrides of the default configuration that was provided
      * when this instance was created.
      */
     async consume(handler, topic, { channel, ...options } = {}) {
@@ -126,8 +126,8 @@ class Queue {
 
     /**
      *
-     * @param entity {Object} - A JSON entity to be serialized and published.
-     * @param [options] {Object} - publish options and/or message properties to be published (see amqplib docs).
+     * @param {Object} entity - A JSON entity to be serialized and published.
+     * @param {Object} [options] - publish options and/or message properties to be published (see amqplib docs).
      * @returns {Promise} - fulfilled once the publish completes.
      */
     publish(entity, options = {}) {
