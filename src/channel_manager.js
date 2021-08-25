@@ -133,11 +133,17 @@ class ChannelManager {
 
         let topology = this.topologyBuilder.topology;
         channel.addTopics = async function (...patterns) {
-            if (!this.__exchange || !topology.exchange || topology.exchange.type !== 'topic')
-                throw new Error('cannot add topics to non-topic exchanges');
+            verifyTopicExchange(this, topology);
 
             for (let pattern of patterns)
                 await this.bindQueue(this.__queue, this.__exchange, pattern);
+        };
+
+        channel.removeTopics = async function (...patterns) {
+            verifyTopicExchange(this, topology);
+
+            for (let pattern of patterns)
+                await this.unbindQueue(this.__queue, this.__exchange, pattern);
         };
 
         if (channelType) {
@@ -158,6 +164,11 @@ class ChannelManager {
             this._clearChannel(channel);
         });
     }
+}
+
+function verifyTopicExchange(channel, topology){
+    if (!channel.__exchange || !topology.exchange || topology.exchange.type !== 'topic')
+        throw new Error('cannot add topics to non-topic exchanges');
 }
 
 function descriptor(channel) {

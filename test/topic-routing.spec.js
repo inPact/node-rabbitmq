@@ -134,4 +134,39 @@ describe('topic routing should: ', function () {
             console.log(e);
         }
     });
+
+    it('un-bind consume channel from topics', async function () {
+        broker = new Broker({
+            url,
+            queues: {
+                test: {
+                    name: 'test',
+                    exchange: { name: 'test', type: 'topic' }
+                }
+            }
+        });
+
+        let received = 0;
+        let queueAdapter = broker.initQueue('test');
+        let channel = await queueAdapter.consume(x => received++, 'routes.one', { name: 'my-queue' });
+        await channel.addTopics('routes.two', 'routes.three'); // check single topic
+
+        let publisher = await broker.initQueue('test');
+        let theEntity = JSON.stringify({ the: 'entity' });
+        await publisher.publishTo('routes.one', theEntity);
+        await publisher.publishTo('routes.two', theEntity);
+        await publisher.publishTo('routes.three', theEntity);
+        await Promise.delay(100);
+        received.should.equal(3);
+
+        await channel.removeTopics('routes.one', 'routes.three'); // check single topic
+
+        received = 0;
+        await publisher.publishTo('routes.one', theEntity);
+        await publisher.publishTo('routes.two', theEntity);
+        await publisher.publishTo('routes.three', theEntity);
+        await Promise.delay(100);
+        received.should.equal(1);
+    });
+
 });
