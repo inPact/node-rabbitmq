@@ -1,5 +1,6 @@
 ## NEXT
-* add explicit method to add/remove topic-bindings to/from existing queues via methods on consume-channel
+* added explicit method to add/remove topic-bindings to/from existing queues via methods on consume-channel
+* fixed bug that that was preventing all consumers from restarting after disconnection when using multiple brokers
 
 ## 3.2.0
 * Return error response if RPC handler throws an error (instead of never responding)
