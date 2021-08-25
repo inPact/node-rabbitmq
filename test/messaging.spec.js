@@ -12,18 +12,10 @@ describe('send and receive should: ', function () {
     });
 
     it('send and receive via direct queue', async function () {
-        broker = new Broker({
-            url,
-            queues: {
-                testBasic: {
-                    name: 'test-basic',
-                    exchange: { name: 'test-basic' }
-                }
-            }
-        });
+        broker = common.createBrokerWithTestQueue({ exchangeType: 'fanout', name: 'test-basic' });
 
         let received;
-        let queue = broker.initQueue('testBasic');
+        let queue = broker.initQueue('test');
         await queue.consume(data => received = JSON.parse(data));
         await queue.publish({ the: 'entity' });
 
@@ -51,57 +43,35 @@ describe('send and receive should: ', function () {
     });
 
     it('send and receive via fanout queue', async function () {
-        broker = new Broker({
-            url,
-            queues: {
-                testBasic: {
-                    name: 'test-basic',
-                    exchange: {
-                        name: 'test-basic',
-                        type: 'fanout'
-                    }
-                }
-            }
-        });
+        broker = common.createBrokerWithTestQueue({ exchangeType: 'fanout', name: 'test-basic' });
 
         let received = [];
-        await broker.initQueue('testBasic', { queueName: 'q1' }).consume(data => {
+        await broker.initQueue('test', { queueName: 'q1' }).consume(data => {
             received.push(JSON.parse(data))
         });
-        await broker.initQueue('testBasic', { queueName: 'q2' }).consume(data => {
+        await broker.initQueue('test', { queueName: 'q2' }).consume(data => {
             received.push(JSON.parse(data))
         });
-        await broker.initQueue('testBasic').publish({ the: 'entity' });
+        await broker.initQueue('test').publish({ the: 'entity' });
 
         await Promise.delay(100);
         received.length.should.equal(2);
     });
 
     it('reconnect consumers and publishers after disconnect', async function () {
-        broker = new Broker({
-            url,
-            queues: {
-                test: {
-                    name: 'test',
-                    exchange: {
-                        name: 'test',
-                        type: 'fanout'
-                    }
-                }
-            }
-        });
+        broker = common.createBrokerWithTestQueue({ exchangeType: 'fanout' });
 
         let received = [];
-        await broker.initQueue('test', 'q1').consume(data => received.push(JSON.parse(data)));
-        let pubQueue = broker.initQueue('test');
-        await pubQueue.publish({ the: 'entity' });
+        await broker.initQueue('test').consume(data => received.push(JSON.parse(data)));
+        let publisher = broker.initQueue('test');
+        await publisher.publish({ the: 'entity' });
 
         await Promise.delay(100); // wait for pub/sub
         received.length.should.equal(1);
 
         (await broker.getConnection()).close();
         await Promise.delay(500); // wait for close and reconnect
-        await pubQueue.publish({ the: 'entity' });
+        await publisher.publish({ the: 'entity' });
         await Promise.delay(100); // wait for pub/sub
         received.length.should.equal(2);
     });

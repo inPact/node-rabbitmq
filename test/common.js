@@ -2,6 +2,7 @@ const Promise = require('bluebird');
 const { Readable } = require('stream');
 const _ = require('lodash');
 const superagent = require('superagent');
+const Broker = require('..');
 
 const API_URL = 'http://localhost:15672/api';
 const API_AUTH_ARGS = ['guest', 'guest'];
@@ -14,12 +15,31 @@ module.exports = {
         if (broker)
             broker.disconnect();
 
-        let exchanges = await this.getFromApi('exchanges');
-        let queues = await this.getFromApi('queues');
-
-        await this.deleteAllViaApi(queues, 'queues');
-        await this.deleteAllViaApi(exchanges, 'exchanges');
+        await this.deleteAllViaApi('queues');
+        await this.deleteAllViaApi('exchanges');
         console.log(`=============================== CLEANUP: finished ===============================`);
+    },
+
+    async getFromApi(...pathParts) {
+        let response = await superagent.get(`${API_URL}/${_.join(pathParts, '/')}`).auth(...API_AUTH_ARGS);
+        return response.body;
+    },
+
+    async deleteAllViaApi(entityType, { addDefaultVhost = true } = {}) {
+        let entities = await this.getFromApi(entityType);
+        entities = entities.filter(x => x && x.name && x.name.indexOf('amq.') === -1);
+        console.log(`=============================== CLEANUP: deleting ${entities.length} ${entityType} ===============================`);
+
+        await Promise.each(entities, async entity => {
+            await this.deleteViaApi(entityType, entity.name, { addDefaultVhost });
+        });
+    },
+
+    async deleteViaApi(entityType, name, { addDefaultVhost = true } = {}) {
+        let response = await superagent
+            .delete(`${API_URL}/${entityType}/${addDefaultVhost ? '%2F/' : ''}${name}`)
+            .auth(...API_AUTH_ARGS);
+        return response.body;
     },
 
     /**
@@ -65,24 +85,26 @@ module.exports = {
         }
     },
 
-    async getFromApi(...pathParts) {
-        let response = await superagent.get(`${API_URL}/${_.join(pathParts, '/')}`).auth(...API_AUTH_ARGS);
-        return response.body;
-    },
-
-    async deleteAllViaApi(entities, entityType, { addDefaultVhost = true } = {}) {
-        entities = entities.filter(x => x && x.name && x.name.indexOf('amq.') === -1);
-        console.log(`=============================== CLEANUP: deleting ${entities.length} ${entityType} ===============================`);
-
-        await Promise.each(entities, async entity => {
-            await this.deleteViaApi(entityType, entity.name, { addDefaultVhost });
+    /**
+     * /**
+     * Creates and returns a broker with one section named "test" containing a queue and exchange named "test",
+     * with the specified exchange type
+     * @param {String} [exchangeType] - if not provided, creates a RMQ direct queue
+     * @param {String} [name] - the name to give both the queue and the exchange; defaults to "test"
+     * @returns {exports}
+     */
+    createBrokerWithTestQueue({ exchangeType, name = 'test'} = {}) {
+        return new Broker({
+            url: 'amqp://localhost',
+            queues: {
+                test: {
+                    name,
+                    exchange: {
+                        name,
+                        type: exchangeType
+                    }
+                }
+            }
         });
-    },
-
-    async deleteViaApi(entityType, name, { addDefaultVhost = true } = {}) {
-        let response = await superagent
-            .delete(`${API_URL}/${entityType}/${addDefaultVhost ? '%2F/' : ''}${name}`)
-            .auth(...API_AUTH_ARGS);
-        return response.body;
     }
 };

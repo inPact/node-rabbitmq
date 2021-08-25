@@ -3,7 +3,6 @@ const Promise = require('bluebird');
 const debug = require('debug')('tabit:infra:rabbit');
 const verbose = require('debug')('tabit:infra:rabbit:verbose');
 const utils = require('@tabit/utils');
-const lock = utils.lock;
 
 /**
  * Encapsulates a distributed amqp queue with a single connection
@@ -194,19 +193,13 @@ class Queue {
 
         debug(`Restarting consumers. Consumers in queue: ${this.consumers.length}`);
 
-        const lockName = 'DistributedQueue._restartConsumers';
-        if (lock.internal.isBusy(lockName))
-            return debug(`Consumer restart aborted: lock busy`);
+        let consumers = _.clone(this.consumers);
+        this.consumers.length = 0;
 
-        return lock.acquire(lockName, () => {
-            let consumers = _.clone(this.consumers);
-            this.consumers.length = 0;
-
-            return utils.promiseWhile(() => consumers.length, () => {
-                let consumer = consumers.pop();
-                return this.consume(consumer.handler, consumer.topic, consumer.options)
-            })
-        });
+        return utils.promiseWhile(() => consumers.length, () => {
+            let consumer = consumers.pop();
+            return this.consume(consumer.handler, consumer.topic, consumer.options)
+        })
     }
 
     _validateConsumeChannel(queue) {
@@ -217,6 +210,5 @@ class Queue {
         }
     }
 }
-
 
 module.exports = Queue;
