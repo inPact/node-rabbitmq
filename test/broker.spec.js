@@ -27,6 +27,8 @@ describe('broker should: ', function () {
         await broker.initQueue('testBasic').publish({ the: 'entity' });
 
         await broker.closeAll();
+
+        console.log(`=============================== waiting for RMQ API to update... ===============================`);
         await Promise.delay(5000);
 
         let connections = await common.getFromApi('connections');
@@ -36,6 +38,5 @@ describe('broker should: ', function () {
         connections.length.should.equal(0, 'number of connections');
         channels.length.should.equal(0, 'number of channels');
         consumers.length.should.equal(0, 'number of consumers');
-
     });
 });

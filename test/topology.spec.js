@@ -179,10 +179,8 @@ describe('topology should: ', function () {
     });
 
     it('bind consume channel to additional topics', async function () {
-        // this.timeout(20000);
-        // console.log(`=============================== cleaning up any leftover to get a clean RMQ server ===============================`);
-        // await Promise.delay(6000);
-        // await common.cleanup();
+        this.timeout(20000);
+        await Promise.delay(5000);
         let previousChannelsCount = (await common.getFromApi('channels')).length;
         let previousConsumersCount = (await common.getFromApi('consumers')).length;
 
@@ -199,8 +197,8 @@ describe('topology should: ', function () {
         let received = 0;
         let queueAdapter = broker.initQueue('test');
         let channel = await queueAdapter.consume(x => received++, 'routes.one', { name: 'my-queue' });
-        await channel.addTopic('routes.two');
-        await channel.addTopic('routes.three', 'routes.four');
+        await channel.addTopics('routes.two');
+        await channel.addTopics('routes.three', 'routes.four');
 
         let publisher = await broker.initQueue('test');
         let theEntity = JSON.stringify({ the: 'entity' });
@@ -213,7 +211,8 @@ describe('topology should: ', function () {
 
         received.should.equal(4);
 
-        await Promise.delay(6000);
+        console.log(`=============================== waiting for RMQ API to update... ===============================`);
+        await Promise.delay(5000);
         let channels = await common.getFromApi('channels');
         let consumers = await common.getFromApi('consumers');
 

@@ -131,7 +131,7 @@ class ChannelManager {
             return descriptor(this);
         };
 
-        channel.addTopic = async function (...patterns) {
+        channel.addTopics = async function (...patterns) {
             for (let pattern of patterns)
                 await this.bindQueue(this.__queue, this.__exchange, pattern);
         };
