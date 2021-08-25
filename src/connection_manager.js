@@ -53,6 +53,17 @@ class ConnectionManager extends EventEmitter {
                 return connection;
             });
     }
+
+    dispose() {
+        if (!this.connection)
+            return;
+
+        this.logger.warn('Distributed queue: destroying connection without consumer recovery');
+        this.connection.removeAllListeners('close');
+        this.connection.removeAllListeners('error');
+
+        this.connection.close();
+    }
 }
 
 module.exports = ConnectionManager;

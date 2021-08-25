@@ -17,7 +17,7 @@ class Queue {
     /**
      * Create queue section
      * @param {Object|String} section The queue configuration to assert, as a full configuration section object or just the name of the section within.
-     * @param {Object} [options] Optional 
+     * @param {Object} [options] Optional
      * @param {Object} [options.logger] Logger to log
      * @param {ChannelManager} [options.channelManager] - the associated channel manager
      */
@@ -33,20 +33,21 @@ class Queue {
 
     /**
      *
-     * @param handler {Function} - a function that is called for each received message, accepting two parameters:
+     * @param {Function} handler - a function that is called for each received message, accepting two parameters:
      * 1. the received message
      * 2. additional properties associated with the received messages
-     * @param topic
+     * @param {String} [topic]
      * @param channel - override default amqplib channel
-     * @param [options] {Object}
-     * @param [options.name] {String}
-     * @param [options.limit] {Number} - the prefetch to use vis-a-vis rabbit MQ
-     * @param [options.maxRetries] {Number} - the max number of retries if {@param options.requeueToTail} is true.
-     * @param [options.requeueToTail] {Boolean} - true to requeue message to tail of queue if {@param handler} fails.
+     * @param {Object} [options]
+     * @param {String} [options.name]
+     * @param {Number} [options.limit] - the prefetch to use vis-a-vis rabbit MQ
+     * @param {Number} [options.maxRetries] - the max number of retries if {@param options.requeueToTail} is true.
+     * @param {Boolean} [options.requeueToTail] - true to requeue message to tail of queue if {@param handler} fails.
      * After a message is requeued it will be acked. Defaults to false. Messages will be requeued at most
      * {@param options.maxRetries} times, after which they will be nacked.
-     * @param [options.override] {Object} - any desired overrides of the default configuration that was provided
+     * @param {Object} [options.override] - any desired overrides of the default configuration that was provided
      * when this instance was created.
+     * @return {amqplib.channel}
      */
     async consume(handler, topic, { channel, ...options } = {}) {
         if (_.isObject(topic)) {
@@ -54,13 +55,15 @@ class Queue {
             topic = undefined;
         }
 
-        this.consumers.unshift({ handler, topic, options });
-
-        if (!channel)
-            channel = await this.channelManager.getConsumeChannel(topic, options);
-
         let consumeOptions = _.merge({}, this.config, options);
         let queue = consumeOptions.name || channel.__queue;
+
+        if (!channel) {
+            await this._validateConsumeChannel(queue);
+            channel = await this.channelManager.getConsumeChannel(topic, options);
+        }
+
+        this.consumers.unshift({ channel, handler, topic, options, queue });
 
         channel.prefetch(consumeOptions.prefetch || 100);
 
@@ -116,7 +119,7 @@ class Queue {
                 this.logger.info(`Distributed queue: Consuming messages from queue "${queue}"`);
 
             if (debug.enabled)
-                debug(`Consuming messages from queue "${queue}" with options: `, _.omit(consumeOptions, 'logger'));
+                debug(`Consuming messages from channel "${channel.getDescriptor()}"${topic ? ` on topic "${topic}"` : ''} with options: `, _.omit(consumeOptions, 'logger'));
 
             return channel;
         } catch (e) {
@@ -126,8 +129,8 @@ class Queue {
 
     /**
      *
-     * @param entity {Object} - A JSON entity to be serialized and published.
-     * @param [options] {Object} - publish options and/or message properties to be published (see amqplib docs).
+     * @param {Object} entity - A JSON entity to be serialized and published.
+     * @param {Object} [options] - publish options and/or message properties to be published (see amqplib docs).
      * @returns {Promise} - fulfilled once the publish completes.
      */
     publish(entity, options = {}) {
@@ -204,6 +207,14 @@ class Queue {
                 return this.consume(consumer.handler, consumer.topic, consumer.options)
             })
         });
+    }
+
+    _validateConsumeChannel(queue) {
+        if (this.consumers.length) {
+            let sameQueueConsumer = this.consumers.find(x => x.queue === queue);
+            if (sameQueueConsumer)
+                throw new Error('Multiple consumers registered to the same queue. If you meant to add bindings, use the "channel.addTopics" method instead');
+        }
     }
 }
 
