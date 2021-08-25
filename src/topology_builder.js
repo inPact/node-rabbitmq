@@ -55,14 +55,14 @@ class TopologyBuilder {
      * {@link routingKey}.
      * @param channel
      * @param routingKey
-     * @param queue
+     * @param queueName
      * @param queueConfig
      * @param exchangeConfig
      * @param {Object} [options]
      * @param {Object} [options.override] - any desired overrides of the default configuration that was provided
      * when this instance was created.
      */
-    async assertQueue(channel, routingKey, queue, options = {}, queueConfig = this.topology, exchangeConfig = this.topology.exchange) {
+    async assertQueue(channel, routingKey, queueName, options = {}, queueConfig = this.topology, exchangeConfig = this.topology.exchange) {
         const topology = this.getOverrideableTopology(options, queueConfig);
 
         // Where there is no override, there will be a mutation here (I'm not sure why) -- Nati
@@ -70,13 +70,15 @@ class TopologyBuilder {
             deadLetterExchange: topology.deadLetter && topology.deadLetter.dlx,
         });
 
-        let res = await channel.assertQueue(queue || topology.name || '', topology);
-        channel.__queue = res.queue;
+        let { queue } = await channel.assertQueue(queueName || topology.name || '', topology);
+        channel.__queue = queue;
 
         if (exchangeConfig) {
-            await channel.bindQueue(res.queue, exchangeConfig.name, routingKey);
-            // Add a private binding
-            await channel.bindQueue(res.queue, exchangeConfig.name, res.queue);
+            channel.__exchange = exchangeConfig.name;
+            await channel.bindQueue(queue, exchangeConfig.name, routingKey);
+
+            // Add a private binding - TODO: can this be removed?
+            await channel.bindQueue(queue, exchangeConfig.name, queue);
         }
     }
 

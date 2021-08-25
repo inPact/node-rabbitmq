@@ -104,7 +104,7 @@ class ChannelManager {
     async _createChannel(channelType, options) {
         if (_.isObject(channelType)) {
             options = channelType;
-            channelType = undefined;
+            channelType = 'sub';
         }
 
         return await new Retry(
@@ -127,9 +127,13 @@ class ChannelManager {
 
     /** @private */
     _manageChannel(channel, channelType) {
-
         channel.getDescriptor = function () {
             return descriptor(this);
+        };
+
+        channel.addTopic = async function (...patterns) {
+            for (let pattern of patterns)
+                await this.bindQueue(this.__queue, this.__exchange, pattern);
         };
 
         if (channelType) {
@@ -148,7 +152,7 @@ class ChannelManager {
                 : '';
             this.logger.error(`Distributed queue error in channel "${channel.getDescriptor()}": ` + utils.errorToString(e) + append);
             this._clearChannel(channel);
-        })
+        });
     }
 }
 

@@ -54,4 +54,8 @@ module.exports = class {
     async getConnection() {
         return await this.connectionManager.getConnection();
     }
+
+    closeAll(){
+        return this.connectionManager.dispose();
+    }
 };

@@ -17,7 +17,7 @@ class Queue {
     /**
      * Create queue section
      * @param {Object|String} section The queue configuration to assert, as a full configuration section object or just the name of the section within.
-     * @param {Object} [options] Optional 
+     * @param {Object} [options] Optional
      * @param {Object} [options.logger] Logger to log
      * @param {ChannelManager} [options.channelManager] - the associated channel manager
      */
@@ -47,6 +47,7 @@ class Queue {
      * {@param options.maxRetries} times, after which they will be nacked.
      * @param {Object} [options.override] - any desired overrides of the default configuration that was provided
      * when this instance was created.
+     * @return {amqplib.channel}
      */
     async consume(handler, topic, { channel, ...options } = {}) {
         if (_.isObject(topic)) {
@@ -54,13 +55,13 @@ class Queue {
             topic = undefined;
         }
 
-        this.consumers.unshift({ handler, topic, options });
-
-        if (!channel)
-            channel = await this.channelManager.getConsumeChannel(topic, options);
-
         let consumeOptions = _.merge({}, this.config, options);
         let queue = consumeOptions.name || channel.__queue;
+
+        if (!channel)
+            channel = await this._getAndValidateConsumeChannel(queue, topic, options);
+
+        this.consumers.unshift({ channel, handler, topic, options, queue });
 
         channel.prefetch(consumeOptions.prefetch || 100);
 
@@ -116,7 +117,7 @@ class Queue {
                 this.logger.info(`Distributed queue: Consuming messages from queue "${queue}"`);
 
             if (debug.enabled)
-                debug(`Consuming messages from queue "${queue}" with options: `, _.omit(consumeOptions, 'logger'));
+                debug(`Consuming messages from channel "${channel.getDescriptor()}"${topic ? ` on topic "${topic}"` : ''} with options: `, _.omit(consumeOptions, 'logger'));
 
             return channel;
         } catch (e) {
@@ -204,6 +205,16 @@ class Queue {
                 return this.consume(consumer.handler, consumer.topic, consumer.options)
             })
         });
+    }
+
+    async _getAndValidateConsumeChannel(queue, topic, options) {
+        if (this.consumers.length) {
+            let sameQueueConsumer = this.consumers.find(x => x.queue === queue);
+            if (sameQueueConsumer)
+                throw new Error('Multiple consumers registered to the same queue. If you meant to add bindings, use the "addTopic" method instead');
+        }
+
+        return await this.channelManager.getConsumeChannel(topic, options);
     }
 }
 
