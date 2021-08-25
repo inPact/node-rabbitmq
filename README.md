@@ -15,6 +15,7 @@ Why opinionated? Unless told otherwise, will:
   * RabbitMQ
   * enable the management plugin
   * download the delayed-messages plugin: https://github.com/rabbitmq/rabbitmq-delayed-message-exchange/releases
+  * copy the plugin (.ez file) to your plugins folder (example path to folder on windows: C:\Program Files\RabbitMQ Server\rabbitmq_server-3.8.19\plugins)
   * enable the delayed-messages plugin: https://github.com/rabbitmq/rabbitmq-delayed-message-exchange
   
 Then run _mocha ./test_
