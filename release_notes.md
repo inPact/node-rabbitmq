@@ -1,5 +1,5 @@
 ## NEXT
-* add explicit method to add topic-bindings to existing queue via consume-channel
+* add explicit method to add/remove topic-bindings to/from existing queues via methods on consume-channel
 
 ## 3.2.0
 * Return error response if RPC handler throws an error (instead of never responding)
