@@ -8,6 +8,10 @@ const Promise = require('bluebird');
 describe('broker should: ', function () {
     let broker;
 
+    before(async function () {
+        await common.cleanup(broker);
+    });
+
     afterEach(async function () {
         await common.cleanup(broker);
     });

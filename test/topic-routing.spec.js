@@ -35,7 +35,7 @@ describe('topic routing should: ', function () {
             if (e instanceof AssertionError)
                 throw e;
 
-            console.log(e);
+            console.log('test succeeded with expected error: ', e);
         }
 
         // with default queue-name
@@ -47,7 +47,7 @@ describe('topic routing should: ', function () {
             if (e instanceof AssertionError)
                 throw e;
 
-            console.log(e);
+            console.log('test succeeded with expected error: ', e);
         }
     });
 
@@ -131,7 +131,7 @@ describe('topic routing should: ', function () {
             if (e instanceof AssertionError)
                 throw e;
 
-            console.log(e);
+            console.log('test succeeded with expected error: ', e);
         }
     });
 
