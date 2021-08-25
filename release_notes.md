@@ -1,3 +1,6 @@
+## NEXT
+* add explicit method to add topic-bindings to existing queue via consume-channel
+
 ## 3.2.0
 * Return error response if RPC handler throws an error (instead of never responding)
 * revert @tabit/utils version to ros-compatible version
