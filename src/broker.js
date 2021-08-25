@@ -55,7 +55,7 @@ module.exports = class {
         return await this.connectionManager.getConnection();
     }
 
-    closeAll(){
+    disconnect(){
         return this.connectionManager.dispose();
     }
 };

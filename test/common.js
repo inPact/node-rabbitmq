@@ -12,7 +12,7 @@ module.exports = {
             return;
 
         if (broker)
-            broker.closeAll();
+            broker.disconnect();
 
         let exchanges = await this.getFromApi('exchanges');
         let queues = await this.getFromApi('queues');

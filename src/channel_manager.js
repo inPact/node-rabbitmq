@@ -131,7 +131,11 @@ class ChannelManager {
             return descriptor(this);
         };
 
+        let topology = this.topologyBuilder.topology;
         channel.addTopics = async function (...patterns) {
+            if (!this.__exchange || !topology.exchange || topology.exchange.type !== 'topic')
+                throw new Error('cannot add topics to non-topic exchanges');
+
             for (let pattern of patterns)
                 await this.bindQueue(this.__queue, this.__exchange, pattern);
         };

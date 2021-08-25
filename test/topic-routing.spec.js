@@ -1,5 +1,6 @@
 const _ = require('lodash');
 const should = require('chai').should();
+const { AssertionError } = require('chai');
 const Broker = require('..');
 const url = 'amqp://localhost';
 const common = require('./common');
@@ -31,6 +32,10 @@ describe('topic routing should: ', function () {
             await queueAdapter.consume(x => x, 'routes.two', { name: 'my-queue' });
             should.fail('second consume to "my-queue" should fail');
         } catch (e) {
+            if (e instanceof AssertionError)
+                throw e;
+
+            console.log(e);
         }
 
         // with default queue-name
@@ -39,6 +44,10 @@ describe('topic routing should: ', function () {
             await queueAdapter.consume(x => x, 'routes.two');
             should.fail('second consume to "test" should fail');
         } catch (e) {
+            if (e instanceof AssertionError)
+                throw e;
+
+            console.log(e);
         }
     });
 
@@ -78,8 +87,9 @@ describe('topic routing should: ', function () {
         let received = 0;
         let queueAdapter = broker.initQueue('test');
         let channel = await queueAdapter.consume(x => received++, 'routes.one', { name: 'my-queue' });
-        await channel.addTopics('routes.two');
-        await channel.addTopics('routes.three', 'routes.four');
+        await channel.addTopics('routes.two'); // check single topic
+        await channel.addTopics('routes.three', 'routes.four'); // check multiple topics
+        await channel.addTopics('routes.four'); // check duplicate topics
 
         let publisher = await broker.initQueue('test');
         let theEntity = JSON.stringify({ the: 'entity' });
@@ -99,5 +109,29 @@ describe('topic routing should: ', function () {
 
         channels.length.should.equal(previousChannelsCount + 2, 'number of channels: ' + JSON.stringify(channels, null, 2));
         consumers.length.should.equal(previousConsumersCount + 1, 'number of consumers');
+    });
+
+    it('prohibit adding topics to non-topic exchanges', async function () {
+        broker = new Broker({
+            url,
+            queues: {
+                test: {
+                    name: 'test',
+                    exchange: { name: 'test', type: 'fanout' }
+                }
+            }
+        });
+
+        let queueAdapter = broker.initQueue('test');
+        let channel = await queueAdapter.consume(x => x);
+        try {
+            await channel.addTopics('routes.two');
+            should.fail('adding topics to non-topic exchanges should be prohibited');
+        } catch (e) {
+            if (e instanceof AssertionError)
+                throw e;
+
+            console.log(e);
+        }
     });
 });

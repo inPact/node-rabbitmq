@@ -26,7 +26,7 @@ describe('broker should: ', function () {
         await broker.initQueue('test').consume(x => x);
         await broker.initQueue('testBasic').publish({ the: 'entity' });
 
-        await broker.closeAll();
+        await broker.disconnect();
 
         console.log(`=============================== waiting for RMQ API to update... ===============================`);
         await Promise.delay(5000);
