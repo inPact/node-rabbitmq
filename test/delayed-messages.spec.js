@@ -30,7 +30,7 @@ async function cleanup() {
     const exchanges = await common.getFromApi('exchanges');
     const exchangeName = exchanges.find(x => x.name === DELAY_EXCHANGE_NAME) ? DELAY_EXCHANGE_NAME : null;
     const queueName = queues.find(q => q.name === QUEUE_NAME) ? QUEUE_NAME : null;
-    await common.cleanup(getTestDelayableBroker(), exchangeName, queueName);
+    await common.cleanup();
 }
 
 describe('Delayed messages', function() {

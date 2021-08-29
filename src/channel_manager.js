@@ -44,9 +44,9 @@ class ChannelManager {
 
     /**
      * @param topic
-     * @param [options] {Object}
-     * @param [options.name] {String}
-     * @param [options.override] {Object} - any desired overrides of the default configuration that was provided
+     * @param {Object} [options]
+     * @param {String} [options.name]
+     * @param {Object} [options.override] - any desired overrides of the default configuration that was provided
      * when this instance was created.
      * @returns {*}
      */
@@ -68,9 +68,9 @@ class ChannelManager {
     /**
      *
      * @param topic
-     * @param [options] {Object}
-     * @param [options.name] {String}
-     * @param [options.override] {Object} - any desired overrides of the default configuration that was provided
+     * @param {Object} [options]
+     * @param {String} [options.name]
+     * @param {Object} [options.override] - any desired overrides of the default configuration that was provided
      * when this instance was created.
      * @private
      */
@@ -104,7 +104,7 @@ class ChannelManager {
     async _createChannel(channelType, options) {
         if (_.isObject(channelType)) {
             options = channelType;
-            channelType = undefined;
+            channelType = 'sub';
         }
 
         return await new Retry(
@@ -127,9 +127,23 @@ class ChannelManager {
 
     /** @private */
     _manageChannel(channel, channelType) {
-
         channel.getDescriptor = function () {
             return descriptor(this);
+        };
+
+        let topology = this.topologyBuilder.topology;
+        channel.addTopics = async function (...patterns) {
+            verifyTopicExchange(this, topology);
+
+            for (let pattern of patterns)
+                await this.bindQueue(this.__queue, this.__exchange, pattern);
+        };
+
+        channel.removeTopics = async function (...patterns) {
+            verifyTopicExchange(this, topology);
+
+            for (let pattern of patterns)
+                await this.unbindQueue(this.__queue, this.__exchange, pattern);
         };
 
         if (channelType) {
@@ -148,8 +162,13 @@ class ChannelManager {
                 : '';
             this.logger.error(`Distributed queue error in channel "${channel.getDescriptor()}": ` + utils.errorToString(e) + append);
             this._clearChannel(channel);
-        })
+        });
     }
+}
+
+function verifyTopicExchange(channel, topology){
+    if (!channel.__exchange || !topology.exchange || topology.exchange.type !== 'topic')
+        throw new Error('cannot add topics to non-topic exchanges');
 }
 
 function descriptor(channel) {

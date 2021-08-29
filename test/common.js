@@ -7,25 +7,18 @@ const API_URL = 'http://localhost:15672/api';
 const API_AUTH_ARGS = ['guest', 'guest'];
 
 module.exports = {
-    async cleanup(broker, exchanges, ...queues) {
+    async cleanup(broker) {
         if (process.env.NO_TEST_CLEANUP)
             return;
 
-        exchanges = [].concat(exchanges);
-        let channel = await(await broker.getConnection()).createChannel();
+        if (broker)
+            broker.disconnect();
 
-        console.log(`=============================== CLEANUP: deleting queues ===============================`);
-        await Promise.each(queues, async q => {
-            if (q)
-                await channel.deleteQueue(q);
-        });
+        let exchanges = await this.getFromApi('exchanges');
+        let queues = await this.getFromApi('queues');
 
-        console.log(`=============================== CLEANUP: deleting exchanges ===============================`);
-        await Promise.each(exchanges, async x => {
-            if (x)
-                await channel.deleteExchange(x);
-        });
-
+        await this.deleteAllViaApi(queues, 'queues');
+        await this.deleteAllViaApi(exchanges, 'exchanges');
         console.log(`=============================== CLEANUP: finished ===============================`);
     },
 
@@ -77,4 +70,21 @@ module.exports = {
         return response.body;
     },
 
+    async deleteAllViaApi(entities, entityType, { addDefaultVhost = true } = {}) {
+        entities = entities.filter(x => x && x.name && x.name.indexOf('amq.') === -1);
+        console.log(`=============================== CLEANUP: deleting ${entities.length} ${entityType} ===============================`);
+
+        await Promise.each(entities, async entity => {
+            await this.deleteViaApi(entityType, entity.name, { addDefaultVhost });
+        });
+    },
+
+    async deleteViaApi(entityType, name, { addDefaultVhost = true } = {}) {
+        let vhost = addDefaultVhost ? '%2F/' : '';
+        let response = await superagent
+            .delete(`${API_URL}/${entityType}/${vhost}${name}`)
+            .auth(...API_AUTH_ARGS);
+
+        return response.body;
+    }
 };
