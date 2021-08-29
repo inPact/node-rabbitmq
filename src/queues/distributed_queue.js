@@ -55,13 +55,13 @@ class Queue {
         }
 
         let consumeOptions = _.merge({}, this.config, options);
-        let queue = consumeOptions.name || channel.__queue;
 
         if (!channel) {
-            await this._validateConsumeChannel(queue);
+            await this._validateConsumeChannel(consumeOptions.name);
             channel = await this.channelManager.getConsumeChannel(topic, options);
         }
 
+        let queue = consumeOptions.name || channel.__queue;
         this.consumers.unshift({ channel, handler, topic, options, queue });
 
         channel.prefetch(consumeOptions.prefetch || 100);
@@ -133,7 +133,7 @@ class Queue {
      * @returns {Promise} - fulfilled once the publish completes.
      */
     publish(entity, options = {}) {
-        return this.publishTo(this.config.name, JSON.stringify(entity), options);
+        return this.publishTo('', JSON.stringify(entity), options);
     }
 
     /**
@@ -147,11 +147,9 @@ class Queue {
      * @param {boolean} [options.done] for internal use.
      * @returns {PromiseLike<any>}
      */
-    async publishTo(routingKey, message, { channel, useBasic, ...options } = {}) {
+    async publishTo(routingKey = '', message, { channel, useBasic, ...options } = {}) {
         return new Promise(async (resolve, reject) => {
             try {
-                routingKey = routingKey || this.config.name || '';
-
                 if (!options || !_.isBoolean(options.persistent))
                     options = _.assign({}, options, { persistent: true });
 
@@ -166,6 +164,8 @@ class Queue {
 
                 if (!channel)
                     channel = await this.channelManager.getPublishChannel();
+
+                routingKey = this._getRoutingKey(routingKey, channel, useBasic);
 
                 debug(`publishing message to route or queue "${routingKey}"`);
                 // TODO: Use confirm-callback instead of received + drain-event?
@@ -185,6 +185,19 @@ class Queue {
                 reject(e);
             }
         })
+    }
+
+    _getRoutingKey(routingKey, channel, useBasic) {
+        if (routingKey)
+            return routingKey;
+
+        if (this.config.requestReply)
+            return this.config.name;
+
+        if (useBasic)
+            return channel.__queue;
+
+        return '';
     }
 
     _restartConsumers() {

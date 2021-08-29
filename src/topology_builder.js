@@ -76,9 +76,6 @@ class TopologyBuilder {
         if (exchangeConfig) {
             channel.__exchange = exchangeConfig.name;
             await channel.bindQueue(queue, exchangeConfig.name, routingKey);
-
-            // Add a private binding - TODO: can this be removed?
-            await channel.bindQueue(queue, exchangeConfig.name, queue);
         }
     }
 

@@ -13,7 +13,7 @@ describe('messaging: ', function () {
 
     describe('should send and receive: ', function () {
         it('via direct queue', async function () {
-            broker = common.createBrokerWithTestQueue({ exchangeType: 'fanout', name: 'test-basic' });
+            broker = common.createBrokerWithTestQueue({ name: 'test-basic' });
 
             let received;
             let queue = broker.initQueue('test');
@@ -29,12 +29,12 @@ describe('messaging: ', function () {
             broker = new Broker({
                 url,
                 queues: {
-                    testBasic: { name: 'test-basic' }
+                    test: { name: 'test' }
                 }
             });
 
             let received;
-            let queue = broker.initQueue('testBasic');
+            let queue = broker.initQueue('test');
             await queue.consume(data => received = JSON.parse(data));
             await queue.publishTo(null, JSON.stringify({ the: 'entity' }), { useBasic: true });
 

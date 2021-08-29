@@ -168,5 +168,4 @@ describe('topic routing should: ', function () {
         await Promise.delay(100);
         received.should.equal(1);
     });
-
 });

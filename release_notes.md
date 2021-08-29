@@ -1,6 +1,9 @@
 ## NEXT
 * added explicit method to add/remove topic-bindings to/from existing queues via methods on consume-channel
 * fixed bug that that was preventing all consumers from restarting after disconnection when using multiple brokers
+* fixed bug where consuming auto-generated queues would explode
+* fixed bug (strange design decision) in which queues were always given an extra binding from the exchange directly to the queue, 
+  which probably served the pub/sub via direct strategy, despite this not being the recommended way of doing it 
 
 ## 3.2.0
 * Return error response if RPC handler throws an error (instead of never responding)
