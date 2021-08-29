@@ -64,15 +64,16 @@ describe('topology should: ', function () {
         let exchanges = await common.getFromApi('exchanges');
         let queues = await common.getFromApi('queues');
 
-        let exchangeNamess = exchanges.map(x => x.name);
-        exchangeNamess.should.include('main-x', exchangeNamess);
-        exchangeNamess.should.include('retry-main-exchange', exchangeNamess);
-        exchangeNamess.should.include('failed-main-exchange', exchangeNamess);
+        let exchangeNames = exchanges.map(x => x.name);
+        exchangeNames.should.include('main-x', exchangeNames);
+        exchangeNames.should.include('retry-main-exchange', exchangeNames);
+
+        exchangeNames.should.include('failed-main-exchange', exchangeNames);
 
         let queueNamess = queues.map(x => x.name);
-        queueNamess.should.include('main', exchangeNamess);
-        queueNamess.should.include('retry-main', exchangeNamess);
-        queueNamess.should.include('failed-main', exchangeNamess);
+        queueNamess.should.include('main', exchangeNames);
+        queueNamess.should.include('retry-main', exchangeNames);
+        queueNamess.should.include('failed-main', exchangeNames);
 
         let mainQueue = queues.find(x => x.name === 'main');
         mainQueue.arguments.should.include({ "x-dead-letter-exchange": "retry-main-exchange" });
