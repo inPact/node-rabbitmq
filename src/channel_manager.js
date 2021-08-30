@@ -180,7 +180,7 @@ function descriptor(channel) {
     if (channel.__type)
         parts.push(channel.__type);
 
-    return `${_.join(_.compact(parts), '->')}(${channel.ch})`;
+    return `${_.join(parts, '->')}(${channel.ch})`;
 }
 
 module.exports = ChannelManager;
