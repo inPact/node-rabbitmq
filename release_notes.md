@@ -4,6 +4,9 @@
 * fixed bug where consuming auto-generated queues would explode
 * fixed bug (strange design decision) in which queues were always given an extra binding from the exchange directly to the queue, 
   which probably served the pub/sub via direct strategy, despite this not being the recommended way of doing it 
+* fixed bug where queues would be asserted by publishers and even generate multiple queues when using auto-generated
+  queues (by not defining a queue-name)
+* improved topology traces  
 
 ## 3.2.0
 * Return error response if RPC handler throws an error (instead of never responding)

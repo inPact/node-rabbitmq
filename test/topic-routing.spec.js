@@ -68,7 +68,7 @@ describe('topic routing should: ', function () {
         await queueAdapter.consume(x => x, 'routes.two', { name: 'a-different-queue' });
     });
 
-    it('bind consume channel to additional topics', async function () {
+    it('bind consume channel to additional topics (@slow)', async function () {
         this.timeout(20000);
         await Promise.delay(5000);
         let previousChannelsCount = (await common.getFromApi('channels')).length;

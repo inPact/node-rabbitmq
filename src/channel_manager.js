@@ -172,14 +172,15 @@ function verifyTopicExchange(channel, topology){
 }
 
 function descriptor(channel) {
-    let parts = [];
+    let parts = ['x:' + (channel.__exchange || '(default)')];
+
     if (channel.__name || channel.__queue)
-        parts.push(channel.__name || channel.__queue);
+        parts.push('q:' + (channel.__name || channel.__queue));
 
     if (channel.__type)
         parts.push(channel.__type);
 
-    return `${_.join(parts, ':')}(${channel.ch})`;
+    return `${_.join(_.compact(parts), '->')}(${channel.ch})`;
 }
 
 module.exports = ChannelManager;

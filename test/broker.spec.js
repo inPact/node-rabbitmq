@@ -16,7 +16,7 @@ describe('broker should: ', function () {
         await common.cleanup(broker);
     });
 
-    it('close all connections without consumer recovery', async function () {
+    it('close all connections without consumer recovery (@slow)', async function () {
         broker = new Broker({
             url,
             queues: {

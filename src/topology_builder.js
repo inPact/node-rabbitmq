@@ -17,32 +17,42 @@ class TopologyBuilder {
      * @returns {Promise.<TResult>}
      */
     async assertTopology(channel, options = {}) {
-        debug(`building topology: `, this.topology);
         const topology = this.getOverrideableTopology(options);
+        debug(`building topology for channel ${channel.getDescriptor()}: from section: `, this.topology);
 
         if (this.topology.deadLetter)
             await this.assertDeadLetterExchange(channel, topology.deadLetter);
 
         await this.assertExchangeAndQueue(channel, topology, topology.exchange);
-        debug(`topology built successfully`);
+        debug(`topology for channel ${channel.getDescriptor()} built successfully`);
     }
 
     async assertExchangeAndQueue(channel, queueConfig = this.topology, exchangeConfig = this.topology.exchange) {
-        if (exchangeConfig && exchangeConfig.name) {
-            if (exchangeConfig.delayedMessages) {
-                await channel.assertExchange(exchangeConfig.name, 'x-delayed-message', {
-                    arguments: { 'x-delayed-type': exchangeConfig.type }
-                });
-            } else {
-                await channel.assertExchange(exchangeConfig.name, exchangeConfig.type);
-            }
-        }
+        await this.assertExchange(exchangeConfig, channel);
 
         if (_.get(exchangeConfig, 'type') === 'topic' ||
-            _.get(exchangeConfig, 'bindQueue') === false)
+            _.get(exchangeConfig, 'bindQueue') === false ||
+            channel.__type === 'pub')
             return;
 
         return await this.assertQueue(channel, '', queueConfig.name, {}, queueConfig, exchangeConfig);
+    }
+
+    async assertExchange(exchangeConfig, channel) {
+        if (exchangeConfig && exchangeConfig.name) {
+            let exchangeOptions;
+            if (exchangeConfig.delayedMessages) {
+                exchangeOptions = { arguments: { 'x-delayed-type': exchangeConfig.type } };
+                exchangeConfig.type = 'x-delayed-message';
+            }
+
+            if (!exchangeConfig.type)
+                // although this is the default, making it explicit adds clarity to the topology construction
+                exchangeConfig.type = 'direct';
+
+            debug(`asserting exchange "${exchangeConfig.name}" with type "${exchangeConfig.type}" and options: `, exchangeOptions);
+            await channel.assertExchange(exchangeConfig.name, exchangeConfig.type, exchangeOptions);
+        }
     }
 
     /**
@@ -70,11 +80,14 @@ class TopologyBuilder {
             deadLetterExchange: topology.deadLetter && topology.deadLetter.dlx,
         });
 
-        let { queue } = await channel.assertQueue(queueName || topology.name || '', topology);
+        queueName = queueName || topology.name || '';
+        debug(`asserting queue "${queueName}" with options: `, _.omit(topology, 'deadLetterExchange', 'url', 'exchange', 'name'));
+        let { queue } = await channel.assertQueue(queueName, topology);
         channel.__queue = queue;
 
         if (exchangeConfig) {
             channel.__exchange = exchangeConfig.name;
+            debug(`binding queue "${queueName}" to exchange "${exchangeConfig.name}" with routing-key "${routingKey}"`);
             await channel.bindQueue(queue, exchangeConfig.name, routingKey);
         }
     }

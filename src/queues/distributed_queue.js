@@ -145,7 +145,7 @@ class Queue {
      * @param {boolean} [options.persistent] whether published messages should be persistent or not
      * defaults to true if not specified.
      * @param {boolean} [options.done] for internal use.
-     * @returns {PromiseLike<any>}
+     * @returns a Promise that resolves when the publish completes.
      */
     async publishTo(routingKey = '', message, { channel, useBasic, ...options } = {}) {
         return new Promise(async (resolve, reject) => {
@@ -153,14 +153,8 @@ class Queue {
                 if (!options || !_.isBoolean(options.persistent))
                     options = _.assign({}, options, { persistent: true });
 
-                if (options.delay) {
-                    if (!_.isNumber(options.delay)) throw new Error('options.delay must be a number');
-                    if (options.delay < 0) throw new Error('options.delay is negative, cannot travel to the past');
-                    if (!_.get(this.config, 'exchange.delayedMessages')) {
-                        throw new Error('to publish a delayed message please configure the exchange with delayedMessage');
-                    }
-                    options = _.merge({}, _.omit(options, 'delay'), { headers: { 'x-delay': options.delay } });
-                }
+                if (options.delay)
+                    options = this._getAndVerifyDelayOptions(options);
 
                 if (!channel)
                     channel = await this.channelManager.getPublishChannel();
@@ -187,6 +181,19 @@ class Queue {
         })
     }
 
+    _getAndVerifyDelayOptions(options) {
+        if (!_.isNumber(options.delay))
+            throw new Error('options.delay must be a number');
+
+        if (options.delay < 0)
+            throw new Error('options.delay is negative, cannot travel to the past');
+
+        if (!_.get(this.config, 'exchange.delayedMessages'))
+            throw new Error('to publish a delayed message please configure the exchange with delayedMessage');
+
+        return _.merge({}, _.omit(options, 'delay'), { headers: { 'x-delay': options.delay } });
+    }
+
     _getRoutingKey(routingKey, channel, useBasic) {
         if (routingKey)
             return routingKey;
@@ -195,7 +202,7 @@ class Queue {
             return this.config.name;
 
         if (useBasic)
-            return channel.__queue;
+            return channel.__queue || this.config.name;
 
         return '';
     }
