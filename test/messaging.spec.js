@@ -39,6 +39,53 @@ describe('messaging: ', function () {
             received.should.deep.equal({ the: 'entity' });
         });
 
+        it('via multiple direct queues', async function () {
+            broker = new Broker({
+                url: 'amqp://localhost',
+                queues: {
+                    testOne: {
+                        name: 'test-one',
+                        exchange: {
+                            name: 'test-x',
+                            type: 'direct'
+                        }
+                    },
+                    testTwo: {
+                        name: 'test-two',
+                        exchange: {
+                            name: 'test-x',
+                            type: 'direct'
+                        }
+                    }
+                }
+            });
+
+            let testOneReceived = 0;
+            let testTwoReceived = 0;
+            let adapterOne = broker.initQueue('testOne');
+            await adapterOne.consume(data => testOneReceived++);
+            await adapterOne.publish({ the: 'entity' });
+
+            await Promise.delay(100);
+            testOneReceived.should.equal(1);
+            testTwoReceived.should.equal(0);
+
+            let adapterTwo = broker.initQueue('testTwo');
+            await adapterTwo.consume(data => testTwoReceived++);
+            await adapterTwo.publish({ the: 'entity' });
+
+            await Promise.delay(50);
+            testOneReceived.should.equal(1);
+            testTwoReceived.should.equal(1);
+
+            await adapterOne.publishTo('test-two', JSON.stringify({ the: 'entity' }));
+
+            await Promise.delay(50);
+            testOneReceived.should.equal(1);
+            testTwoReceived.should.equal(2);
+        });
+
+
         it('via fanout queue', async function () {
             broker = common.createBrokerWithTestQueue({ exchangeType: 'fanout', name: 'test-basic' });
 
@@ -249,9 +296,7 @@ describe('messaging: ', function () {
 
         //TODO
         it.skip('expire messages based on specified expiration', async function () {
-
         });
-
     });
 })
 ;

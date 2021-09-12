@@ -90,10 +90,13 @@ class TopologyBuilder {
         channel.__queue = queue;
 
         if (exchangeConfig) {
-            debug(`binding queue "${queueName}" to exchange "${exchangeConfig.name || '(default)'}" with routing-key "${routingKey}"`);
             if (exchangeConfig.useDefault)
                 return;
 
+            if (exchangeConfig.type === 'direct')
+                routingKey = queueName;
+
+            debug(`binding queue "${queueName}" to exchange "${exchangeConfig.name || '(default)'}" with routing-key "${routingKey}"`);
             await channel.bindQueue(queue, exchangeConfig.name, routingKey);
         }
     }

@@ -203,7 +203,7 @@ class Queue {
         if (this.config.requestReply)
             return this.config.name;
 
-        if (useBasic || this.useDefaultExchange)
+        if (useBasic || this.useDefaultExchange || this.exchange.type === 'direct')
             return channel.__queue || this.config.name;
 
         return '';
