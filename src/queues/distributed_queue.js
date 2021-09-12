@@ -24,7 +24,9 @@ class Queue {
         this.logger = logger;
         this.consumers = [];
         this.config = section;
-        this.exchangeName = _.get(section, 'exchange.name', '');
+        this.exchange = _.get(section, 'exchange', {});
+        this.exchangeName = this.exchange.name || '';
+        this.useDefaultExchange = this.exchange.useDefault;
 
         this.channelManager = channelManager;
         channelManager.connectionManager.on('closed', this._restartConsumers.bind(this));
@@ -201,7 +203,7 @@ class Queue {
         if (this.config.requestReply)
             return this.config.name;
 
-        if (useBasic)
+        if (useBasic || this.useDefaultExchange)
             return channel.__queue || this.config.name;
 
         return '';

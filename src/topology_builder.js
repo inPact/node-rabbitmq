@@ -1,6 +1,6 @@
 const _ = require('lodash');
-const Promise = require('bluebird');
 const debug = require('debug')('tabit:infra:rabbit:topology');
+const FatalError = require('./fatal_error');
 
 class TopologyBuilder {
     constructor(topology) {
@@ -39,6 +39,9 @@ class TopologyBuilder {
     }
 
     async assertExchange(exchangeConfig, channel) {
+        if (!exchangeConfig && !this.topology.requestReply)
+            throw new FatalError(`${channel.getDescriptor()}: building topology failed: an exchange config is required!`)
+
         if (exchangeConfig && exchangeConfig.name) {
             let exchangeOptions;
             if (exchangeConfig.delayedMessages) {
@@ -50,8 +53,9 @@ class TopologyBuilder {
                 // although this is the default, making it explicit adds clarity to the topology construction
                 exchangeConfig.type = 'direct';
 
-            debug(`asserting exchange "${exchangeConfig.name}" with type "${exchangeConfig.type}" and options: `, exchangeOptions);
+            debug(`asserting exchange "${exchangeConfig.name}" with type "${exchangeConfig.type}" and options:`, exchangeOptions);
             await channel.assertExchange(exchangeConfig.name, exchangeConfig.type, exchangeOptions);
+            channel.__exchange = exchangeConfig.name;
         }
     }
 
@@ -86,8 +90,10 @@ class TopologyBuilder {
         channel.__queue = queue;
 
         if (exchangeConfig) {
-            channel.__exchange = exchangeConfig.name;
-            debug(`binding queue "${queueName}" to exchange "${exchangeConfig.name}" with routing-key "${routingKey}"`);
+            debug(`binding queue "${queueName}" to exchange "${exchangeConfig.name || '(default)'}" with routing-key "${routingKey}"`);
+            if (exchangeConfig.useDefault)
+                return;
+
             await channel.bindQueue(queue, exchangeConfig.name, routingKey);
         }
     }

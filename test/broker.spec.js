@@ -28,7 +28,7 @@ describe('broker should: ', function () {
         });
 
         await broker.initQueue('test').consume(x => x);
-        await broker.initQueue('testBasic').publish({ the: 'entity' });
+        await broker.initQueue('test').publish({ the: 'entity' });
 
         await broker.disconnect();
 

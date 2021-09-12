@@ -7,6 +7,8 @@
 * fixed bug where queues would be asserted by publishers and even generate multiple queues when using auto-generated
   queues (by not defining a queue-name)
 * improved topology traces  
+* working with default exchange with direct routing to specific queues made clearer and more explicit
+  BREAKING CHANGES: For clarity, defining a non-rpc section without an explicit exchange configuration is now prohibited 
 
 ## 3.2.0
 * Return error response if RPC handler throws an error (instead of never responding)

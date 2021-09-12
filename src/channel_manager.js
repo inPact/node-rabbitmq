@@ -115,7 +115,12 @@ class ChannelManager {
                     await this.topologyBuilder.assertTopology(channel, options);
                     return channel;
                 }),
-            { delay: 1000, maxTime: Infinity, title: 'Distributed queue' })
+            {
+                delay: 1000,
+                maxTime: Infinity,
+                title: 'Distributed queue',
+                retryErrorMatch: e => e.retry !== false
+            })
             .execute();
     }
 
@@ -166,19 +171,23 @@ class ChannelManager {
     }
 }
 
-function verifyTopicExchange(channel, topology){
+function verifyTopicExchange(channel, topology) {
     if (!channel.__exchange || !topology.exchange || topology.exchange.type !== 'topic')
         throw new Error('cannot add topics to non-topic exchanges');
 }
 
 function descriptor(channel) {
+    let isSub = channel.__type === 'sub';
     let parts = ['x:' + (channel.__exchange || '(default)')];
 
-    if (channel.__name || channel.__queue)
+    if (isSub && (channel.__name || channel.__queue))
         parts.push('q:' + (channel.__name || channel.__queue));
 
     if (channel.__type)
         parts.push(channel.__type);
+
+    if (!isSub)
+        _.reverse(parts);
 
     return `${_.join(parts, '->')}(${channel.ch})`;
 }

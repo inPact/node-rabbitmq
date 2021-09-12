@@ -12,6 +12,20 @@ describe('messaging: ', function () {
     });
 
     describe('should send and receive: ', function () {
+        it('should require exchange declaration', async function () {
+            broker = new Broker({
+                url: 'amqp://localhost',
+                queues: {
+                    test: {
+                        name: 'test'
+                    }
+                }
+            });
+
+            let queue = broker.initQueue('test');
+            await common.assertFails(() => queue.consume(x => x));
+        });
+
         it('via direct queue', async function () {
             broker = common.createBrokerWithTestQueue({ name: 'test-basic' });
 
@@ -19,24 +33,6 @@ describe('messaging: ', function () {
             let queue = broker.initQueue('test');
             await queue.consume(data => received = JSON.parse(data));
             await queue.publish({ the: 'entity' });
-
-            await Promise.delay(100);
-            should.exist(received, `message was not received`);
-            received.should.deep.equal({ the: 'entity' });
-        });
-
-        it('via basic queue', async function () {
-            broker = new Broker({
-                url,
-                queues: {
-                    test: { name: 'test' }
-                }
-            });
-
-            let received;
-            let queue = broker.initQueue('test');
-            await queue.consume(data => received = JSON.parse(data));
-            await queue.publishTo(null, JSON.stringify({ the: 'entity' }), { useBasic: true });
 
             await Promise.delay(100);
             should.exist(received, `message was not received`);
@@ -57,6 +53,81 @@ describe('messaging: ', function () {
 
             await Promise.delay(100);
             received.length.should.equal(2);
+        });
+    });
+
+    describe('default exchange: ', function () {
+        it('should send and receive', async function () {
+            broker = new Broker({
+                url,
+                queues: {
+                    test: {
+                        name: 'test',
+                        exchange: { useDefault: true }
+                    }
+                }
+            });
+
+            let received;
+            let queue = broker.initQueue('test');
+            await queue.consume(data => received = JSON.parse(data));
+            await queue.publish({ the: 'entity' });
+
+            await Promise.delay(50);
+            should.exist(received, `message was not received`);
+            received.should.deep.equal({ the: 'entity' });
+        });
+
+        it('should allow publishing to specified queue', async function () {
+            broker = new Broker({
+                url,
+                queues: {
+                    nati: {
+                        name: 'nati',
+                        exchange: { useDefault: true }
+                    },
+                    joni: {
+                        name: 'joni',
+                        exchange: { useDefault: true }
+                    }
+                }
+            });
+
+            let natiReceived = 0;
+            let natiQueue = broker.initQueue('nati');
+            await natiQueue.consume(data => natiReceived++);
+            await natiQueue.publish({ the: 'entity' });
+
+            let joniReceived = 0;
+            let joniQueue = broker.initQueue('joni');
+            await joniQueue.consume(data => joniReceived++);
+            await joniQueue.publish({ the: 'entity' });
+
+            await Promise.delay(50);
+            natiReceived.should.equal(1);
+        });
+
+        it('should allow publishing to arbitrary queue', async function () {
+            broker = new Broker({
+                url,
+                queues: {
+                    defaultExchange: {
+                        exchange: { useDefault: true }
+                    },
+                    test: {
+                        name: 'test',
+                        exchange: { useDefault: true }
+                    }
+                }
+            });
+
+            let received;
+            await broker.initQueue('test').consume(data => received = JSON.parse(data));
+            await broker.initQueue('defaultExchange').publishTo('test', JSON.stringify({ the: 'entity' }));
+
+            await Promise.delay(100);
+            should.exist(received, `message was not received`);
+            received.should.deep.equal({ the: 'entity' });
         });
     });
 
@@ -175,5 +246,12 @@ describe('messaging: ', function () {
             await Promise.delay(PREFETCH * 10);
             handling.should.equal(PREFETCH);
         });
+
+        //TODO
+        it.skip('expire messages based on specified expiration', async function () {
+
+        });
+
     });
-});
+})
+;

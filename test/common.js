@@ -3,6 +3,7 @@ const { Readable } = require('stream');
 const _ = require('lodash');
 const superagent = require('superagent');
 const Broker = require('..');
+const { AssertionError } = require('chai');
 
 const API_URL = 'http://localhost:15672/api';
 const API_AUTH_ARGS = ['guest', 'guest'];
@@ -95,21 +96,39 @@ module.exports = {
      * Creates and returns a broker with one section named "test" containing a queue and exchange named "test",
      * with the specified exchange type
      * @param {String} [exchangeType] - if not provided, creates a RMQ direct queue
-     * @param {String} [name] - the name to give both the queue and the exchange; defaults to "test"
+     * @param {String} [exchangeName] - the name of the exchange; defaults to "test"
+     * @param {String} [queueName] - the name of the queue; defaults to "test"
+     * @param {String} [exchangeName] - the name to give BOTH the queue and the exchange (if you want them to be the same).
+     * Only used if NEITHER {@param exchangeName} and {@param queueName} are not provided.
      * @returns {exports}
      */
-    createBrokerWithTestQueue({ exchangeType, name = 'test' } = {}) {
+    createBrokerWithTestQueue({ exchangeType, queueName = 'test', exchangeName = 'test', name } = {}) {
+        if (name && !queueName && !exchangeName)
+            queueName = exchangeName = name;
+
         return new Broker({
             url: 'amqp://localhost',
             queues: {
                 test: {
-                    name,
+                    name: queueName,
                     exchange: {
-                        name: name + '-x',
+                        name: exchangeName + '-x',
                         type: exchangeType
                     }
                 }
             }
         });
+    },
+
+    async assertFails(action, { failMessage } = {}) {
+        try {
+            await action();
+            should.fail();
+        } catch (e) {
+            if (e instanceof AssertionError)
+                throw e;
+
+            console.log('test succeeded with expected error: ', e);
+        }
     }
 };
