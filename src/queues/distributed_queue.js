@@ -143,13 +143,12 @@ class Queue {
      * @param {string} message the message to publish.
      * @param {Object} [options={}] the options to attach to the published message.
      * @param {Object} [options.channel] override default amqplib channel.
-     * @param {boolean} [options.useBasic]
      * @param {boolean} [options.persistent] whether published messages should be persistent or not
      * defaults to true if not specified.
      * @param {boolean} [options.done] for internal use.
      * @returns a Promise that resolves when the publish completes.
      */
-    async publishTo(routingKey = '', message, { channel, useBasic, ...options } = {}) {
+    async publishTo(routingKey = '', message, { channel, ...options } = {}) {
         return new Promise(async (resolve, reject) => {
             try {
                 if (!options || !_.isBoolean(options.persistent))
@@ -161,14 +160,12 @@ class Queue {
                 if (!channel)
                     channel = await this.channelManager.getPublishChannel();
 
-                routingKey = this._getRoutingKey(routingKey, channel, useBasic);
+                routingKey = this._getRoutingKey(routingKey, channel);
 
                 debug(`publishing message to route or queue "${routingKey}"`);
                 // TODO: Use confirm-callback instead of received + drain-event?
-                let received = useBasic
-                    ? channel.sendToQueue(routingKey, Buffer.from(message), options)
-                    : channel.publish(this.exchangeName, routingKey, Buffer.from(message), options);
 
+                let received = channel.publish(this.exchangeName, routingKey, Buffer.from(message), options);
                 if (received)
                     return resolve();
 
@@ -196,14 +193,14 @@ class Queue {
         return _.merge({}, _.omit(options, 'delay'), { headers: { 'x-delay': options.delay } });
     }
 
-    _getRoutingKey(routingKey, channel, useBasic) {
+    _getRoutingKey(routingKey, channel) {
         if (routingKey)
             return routingKey;
 
         if (this.config.requestReply)
             return this.config.name;
 
-        if (useBasic || this.useDefaultExchange || this.exchange.type === 'direct')
+        if (this.useDefaultExchange || this.exchange.type === 'direct')
             return channel.__queue || this.config.name;
 
         return '';

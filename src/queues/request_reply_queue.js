@@ -49,7 +49,6 @@ module.exports = class RequestReplyQueue extends DistributedQueue {
             debug(`Q<--* sending response to ${description}`);
             await this.publishTo(props.replyTo, this._serialize(response), {
                 channel,
-                useBasic: true,
                 correlationId: props.correlationId
             });
         };

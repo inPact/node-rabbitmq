@@ -317,5 +317,4 @@ describe('messaging: ', function () {
             received.should.equal(1);
         });
     });
-})
-;
+});

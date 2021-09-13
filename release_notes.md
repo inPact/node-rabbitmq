@@ -10,6 +10,8 @@
 * working with default exchange with direct routing to specific queues made clearer and more explicit
   BREAKING CHANGES: For clarity, defining a non-rpc section without an explicit exchange configuration is now prohibited 
 * BREAKING CHANGES: direct channels are no longer bound without routing key (thus they no longer behave like fanout queues)  
+* internally, removed amqplib#sendToQueue usage in favor of publishing with empty exchange-name
+  BREAKING CHANGES: "useBasic" flag in #publish and #publishTo is no longer supported
 
 ## 3.2.0
 * Return error response if RPC handler throws an error (instead of never responding)

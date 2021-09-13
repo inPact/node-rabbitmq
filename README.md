@@ -2,7 +2,7 @@
 
 Why opinionated? Unless told otherwise, will:
 * always set a default prefetch of 100
-* always publish messages as persistent
+* always publish messages as persistent (and leave the amqplib default of setting all queues as durable)
 * consumer-friendly request-reply-queue implementation
 * and more...
 
