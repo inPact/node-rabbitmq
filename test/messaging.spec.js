@@ -294,8 +294,27 @@ describe('messaging: ', function () {
             handling.should.equal(PREFETCH);
         });
 
-        //TODO
-        it.skip('expire messages based on specified expiration', async function () {
+        it('pass all options on to amqplib (e.g. messageTtl)', async function () {
+            const MESSAGE_TTL = 100;
+            broker = common.createBrokerWithTestQueue({
+                rootOptions: {
+                    prefetch: 1,
+                    messageTtl: MESSAGE_TTL
+                }
+            });
+
+            let received = 0;
+            let queue = broker.initQueue('test');
+            await queue.consume(async () => {
+                received++;
+                await Promise.delay(MESSAGE_TTL * 2);
+            });
+
+            await queue.publish({ the: 'entity' });
+            await queue.publish({ the: 'entity' });
+
+            await Promise.delay(MESSAGE_TTL * 3);
+            received.should.equal(1);
         });
     });
 })

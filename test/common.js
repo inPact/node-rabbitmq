@@ -98,23 +98,34 @@ module.exports = {
      * @param {String} [exchangeType] - if not provided, creates a RMQ direct queue
      * @param {String} [exchangeName] - the name of the exchange; defaults to "test"
      * @param {String} [queueName] - the name of the queue; defaults to "test"
-     * @param {String} [exchangeName] - the name to give BOTH the queue and the exchange (if you want them to be the same).
+     * @param {String} [name] - the name to give BOTH the queue and the exchange (if you want them to be the same).
      * Only used if NEITHER {@param exchangeName} and {@param queueName} are not provided.
-     * @returns {exports}
+     * @param {Object} [rootOptions]
+     * @param {Object} [queueOptions]
+     * @returns {Broker}
      */
-    createBrokerWithTestQueue({ exchangeType, queueName = 'test', exchangeName = 'test', name } = {}) {
+    createBrokerWithTestQueue({
+                                  exchangeType,
+                                  queueName = 'test',
+                                  exchangeName = 'test',
+                                  name,
+                                  rootOptions = {},
+                                  queueOptions = {}
+                              } = {}) {
         if (name && !queueName && !exchangeName)
             queueName = exchangeName = name;
 
         return new Broker({
             url: 'amqp://localhost',
+            ...rootOptions,
             queues: {
                 test: {
                     name: queueName,
                     exchange: {
                         name: exchangeName + '-x',
                         type: exchangeType
-                    }
+                    },
+                    ...queueOptions
                 }
             }
         });
