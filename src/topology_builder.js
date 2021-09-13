@@ -3,8 +3,14 @@ const debug = require('debug')('tabit:infra:rabbit:topology');
 const FatalError = require('./fatal_error');
 
 class TopologyBuilder {
-    constructor(topology) {
-        this.topology = _.omit(topology, 'logger');
+    /** @private */
+    constructor(configuration, topology) {
+        this.configuration = _.omit(configuration, 'logger');
+        this.topology = _.cloneDeep(topology);
+    }
+
+    static forSection(configuration, section) {
+        return new TopologyBuilder(configuration, section)
     }
 
     /**

@@ -9,6 +9,9 @@ const API_URL = 'http://localhost:15672/api';
 const API_AUTH_ARGS = ['guest', 'guest'];
 
 module.exports = {
+    /**
+     * @param [broker]
+     */
     async cleanup(broker) {
         if (process.env.NO_TEST_CLEANUP)
             return;

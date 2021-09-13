@@ -13,13 +13,7 @@ module.exports = class {
         this.logger = config.logger || console;
         this.config = config;
         this.configReader = new ConfigReader(this.config);
-        this.topologyBuilder = new TopologyBuilder(this.config);
         this.connectionManager = new ConnectionManager(config, { logger: this.logger });
-        this.channelManager = new ChannelManager(this.config, {
-            logger: this.logger,
-            topologyBuilder: this.topologyBuilder,
-            connectionManager: this.connectionManager
-        });
     }
 
     /**
@@ -32,6 +26,26 @@ module.exports = class {
      * @returns {Queue} the section
      */
     initQueue(section, { queueName, sectionOverride = {} } = {}) {
+        section = this._fixSection(section, queueName, sectionOverride);
+        let topologyBuilder = TopologyBuilder.forSection(this.config, section);
+
+        return queueFactory.create(topologyBuilder.topology, {
+            queueName,
+            logger: this.logger,
+            channelManager: new ChannelManager(this.connectionManager, topologyBuilder, { logger: this.logger })
+        });
+    }
+
+    async getConnection() {
+        return await this.connectionManager.getConnection();
+    }
+
+    disconnect() {
+        return this.connectionManager.dispose();
+    }
+
+    // TODO: move this to topology builder? Is all of this needed?
+    _fixSection(section, queueName, sectionOverride) {
         if (typeof section === 'string')
             section = this.configReader.getQueueConfig(section);
 
@@ -44,18 +58,7 @@ module.exports = class {
         if (section.limit)
             section.prefetch = section.limit;
 
-        return queueFactory.create(section, {
-            queueName,
-            logger: this.logger,
-            channelManager: this.channelManager.forSection(section)
-        });
-    }
-
-    async getConnection() {
-        return await this.connectionManager.getConnection();
-    }
-
-    disconnect(){
-        return this.connectionManager.dispose();
+        return section;
     }
 };
+

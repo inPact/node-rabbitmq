@@ -1,38 +1,21 @@
 const _ = require('lodash');
 const utils = require('@tabit/utils');
-
-const TopologyBuilder = require('./topology_builder');
-const ConnectionManager = require('./connection_manager');
 const Retry = utils.Retry;
 
 class ChannelManager {
     /**
      * Create channel manager
-     * @param {Object} config The queue section configuration to assert.
+     * @param {ConnectionManager} connectionManager The associated connection manager
+     * @param {TopologyBuilder} topologyBuilder The associated topology builder
      * @param {Object} [options] Optional options
      * @param {Object} [options.logger] Logger to log
-     * @param {TopologyBuilder} [options.topologyBuilder] The associated topology builder
-     * @param {ConnectionManager} [options.connectionManager] The associated connection manager
      */
-    constructor(config, { logger = console, topologyBuilder, connectionManager } = {}) {
-        this.config = config;
-        this.connectionManager = connectionManager || new ConnectionManager(config, { logger });
-        this.topologyBuilder = topologyBuilder || new TopologyBuilder(config);
+    constructor(connectionManager, topologyBuilder, { logger = console } = {}) {
+        this.topologyBuilder = topologyBuilder;
+        this.topology = topologyBuilder.topology;
+        this.connectionManager = connectionManager;
         this.channels = { pub: null, sub: null };
         this.logger = logger;
-    }
-
-    /**
-     *
-     * @param section
-     * @returns {ChannelManager}
-     */
-    forSection(section) {
-        return new ChannelManager(section, {
-            logger: this.logger,
-            connectionManager: this.connectionManager,
-            topologyBuilder: new TopologyBuilder(section)
-        });
     }
 
     async getPublishChannel() {
@@ -48,7 +31,7 @@ class ChannelManager {
      * @param {String} [options.name]
      * @param {Object} [options.override] - any desired overrides of the default configuration that was provided
      * when this instance was created.
-     * @returns {*}
+     * @returns amqplib channel
      */
     async getConsumeChannel(topic, options) {
         if (!topic) {
@@ -61,7 +44,7 @@ class ChannelManager {
         return this._createTopicChannel(topic, options);
     }
 
-    getConnection(config = this.config) {
+    getConnection(config) {
         return this.connectionManager.getConnection(config);
     }
 
@@ -72,6 +55,7 @@ class ChannelManager {
      * @param {String} [options.name]
      * @param {Object} [options.override] - any desired overrides of the default configuration that was provided
      * when this instance was created.
+     * @returns amqplib channel
      * @private
      */
     _createTopicChannel(topic, options = {}) {
@@ -98,7 +82,7 @@ class ChannelManager {
      * @param {Object} [options]
      * @param {Object}[options.override] - any desired overrides of the default configuration that was provided
      * when this instance was created.
-     * @returns {*}
+     * @returns amqplib channel
      * @private
      */
     async _createChannel(channelType, options) {

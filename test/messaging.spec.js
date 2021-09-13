@@ -85,7 +85,6 @@ describe('messaging: ', function () {
             testTwoReceived.should.equal(2);
         });
 
-
         it('via fanout queue', async function () {
             broker = common.createBrokerWithTestQueue({ exchangeType: 'fanout', name: 'test-basic' });
 

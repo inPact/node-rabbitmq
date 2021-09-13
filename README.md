@@ -6,6 +6,10 @@ Why opinionated? Unless told otherwise, will:
 * consumer-friendly request-reply-queue implementation
 * and more...
 
+**Tracing:**
+* To enable all traces, set the `DEBUG` environment variable to `tabit:infra:rabbit:*`
+* Additional more specific traces are also available (e.g., `tabit:infra:rabbit:topology`, etc)
+
 **Running tests:**
 
   Either use the available docker-compose to run on a container, OR

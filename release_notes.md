@@ -1,15 +1,15 @@
 ## NEXT
 * added explicit method to add/remove topic-bindings to/from existing queues via methods on consume-channel
+  BREAKING CHANGES: consuming twice with the same queue-adapter on the same queue now throws an error
 * fixed bug that that was preventing all consumers from restarting after disconnection when using multiple brokers
 * fixed bug where consuming auto-generated queues would explode
-* fixed bug (strange design decision) in which queues were always given an extra binding from the exchange directly to the queue, 
-  which probably served the pub/sub via direct strategy, despite this not being the recommended way of doing it 
 * fixed bug where queues would be asserted by publishers and even generate multiple queues when using auto-generated
   queues (by not defining a queue-name)
 * improved topology traces  
 * working with default exchange with direct routing to specific queues made clearer and more explicit
   BREAKING CHANGES: For clarity, defining a non-rpc section without an explicit exchange configuration is now prohibited 
-* BREAKING CHANGES: direct channels are no longer bound without routing key (thus they no longer behave like fanout queues)  
+* BREAKING CHANGES: queues of direct exchanges are no longer bound without a pattern (thus they no longer behave like fanout queues);
+  non-direct exchanges no longer add an extra binding with the queue-name as the pattern
 * internally, removed amqplib#sendToQueue usage in favor of publishing with empty exchange-name
   BREAKING CHANGES: "useBasic" flag in #publish and #publishTo is no longer supported
 

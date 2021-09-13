@@ -15,16 +15,16 @@ class Queue {
 
     /**
      * Create queue section
+     * @param {Object} topology
      * @param {Object|String} section The queue configuration to assert, as a full configuration section object or just the name of the section within.
-     * @param {Object} [options] Optional
      * @param {Object} [options.logger] Logger to log
      * @param {ChannelManager} [options.channelManager] - the associated channel manager
      */
-    constructor(section, { logger = console, channelManager } = {}) {
+    constructor(topology, { logger = console, channelManager } = {}) {
         this.logger = logger;
         this.consumers = [];
-        this.config = section;
-        this.exchange = _.get(section, 'exchange', {});
+        this.topology = topology;
+        this.exchange = _.get(topology, 'exchange', {});
         this.exchangeName = this.exchange.name || '';
         this.useDefaultExchange = this.exchange.useDefault;
 
@@ -56,7 +56,7 @@ class Queue {
             topic = undefined;
         }
 
-        let consumeOptions = _.merge({}, this.config, options);
+        let consumeOptions = _.merge({}, this.topology, options);
 
         if (!channel) {
             await this._validateConsumeChannel(consumeOptions.name);
@@ -187,7 +187,7 @@ class Queue {
         if (options.delay < 0)
             throw new Error('options.delay is negative, cannot travel to the past');
 
-        if (!_.get(this.config, 'exchange.delayedMessages'))
+        if (!_.get(this.topology, 'exchange.delayedMessages'))
             throw new Error('to publish a delayed message please configure the exchange with delayedMessage');
 
         return _.merge({}, _.omit(options, 'delay'), { headers: { 'x-delay': options.delay } });
@@ -197,11 +197,11 @@ class Queue {
         if (routingKey)
             return routingKey;
 
-        if (this.config.requestReply)
-            return this.config.name;
+        if (this.topology.requestReply)
+            return this.topology.name;
 
         if (this.useDefaultExchange || this.exchange.type === 'direct')
-            return channel.__queue || this.config.name;
+            return channel.__queue || this.topology.name;
 
         return '';
     }
