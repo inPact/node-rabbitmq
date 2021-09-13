@@ -3,10 +3,7 @@ const ChannelManager = require('./channel_manager');
 const ConnectionManager = require('./connection_manager');
 const TopologyBuilder = require('./topology_builder');
 const ConfigReader = require('./config_reader');
-
 const queueFactory = require('./queues');
-
-const Queue = require('./queues/distributed_queue');
 
 module.exports = class {
     constructor(config) {
@@ -26,8 +23,11 @@ module.exports = class {
      * @returns {Queue} the section
      */
     initQueue(section, { queueName, sectionOverride = {} } = {}) {
-        section = this._fixSection(section, queueName, sectionOverride);
-        let topologyBuilder = TopologyBuilder.forSection(this.config, section);
+        if (typeof section === 'string')
+            section = this.configReader.getQueueConfig(section);
+
+        section = fixSection(section, queueName, sectionOverride);
+        let topologyBuilder = TopologyBuilder.forSection(section);
 
         return queueFactory.create(topologyBuilder.topology, {
             queueName,
@@ -43,22 +43,18 @@ module.exports = class {
     disconnect() {
         return this.connectionManager.dispose();
     }
-
-    // TODO: move this to topology builder? Is all of this needed?
-    _fixSection(section, queueName, sectionOverride) {
-        if (typeof section === 'string')
-            section = this.configReader.getQueueConfig(section);
-
-        if (queueName)
-            sectionOverride.name = queueName;
-
-        if (sectionOverride)
-            section = _.merge({}, section, sectionOverride);
-
-        if (section.limit)
-            section.prefetch = section.limit;
-
-        return section;
-    }
 };
 
+// TODO: move this to topology builder? Is all of this needed?
+function fixSection(section, queueName, sectionOverride) {
+    if (queueName)
+        sectionOverride.name = queueName;
+
+    if (sectionOverride)
+        section = _.merge({}, section, sectionOverride);
+
+    if (section.limit)
+        section.prefetch = section.limit;
+
+    return section;
+}

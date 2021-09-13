@@ -4,13 +4,12 @@ const FatalError = require('./fatal_error');
 
 class TopologyBuilder {
     /** @private */
-    constructor(configuration, topology) {
-        this.configuration = _.omit(configuration, 'logger');
+    constructor(topology) {
         this.topology = _.cloneDeep(topology);
     }
 
-    static forSection(configuration, section) {
-        return new TopologyBuilder(configuration, section)
+    static forSection(section) {
+        return new TopologyBuilder(section)
     }
 
     /**
