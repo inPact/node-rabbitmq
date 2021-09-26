@@ -333,5 +333,36 @@ describe('messaging: ', function () {
             await Promise.delay(MESSAGE_EXPIRATION * 5);
             received.should.equal(1);
         });
+
+        it('translate all string time options via ms (e.g., expiration )', async function () {
+            broker = common.createBrokerWithTestQueue({ rootOptions: { prefetch: 1 } });
+            let queue = broker.initQueue('test');
+            let receivedExpiration;
+            await queue.consume(async (x, y, z, envelope) => {
+                receivedExpiration = envelope.properties.expiration;
+            });
+
+            await queue.publish({ the: 'entity' }, { expiration: '0.2s' });
+            await Promise.delay(500);
+
+            receivedExpiration.should.equal('200');
+        });
+
+        it('translate all string time options via ms (e.g., messageTtl )', async function () {
+            broker = common.createBrokerWithTestQueue({
+                rootOptions: {
+                    prefetch: 1,
+                    messageTtl: '0.3s'
+                }
+            });
+
+            let queue = broker.initQueue('test');
+            await queue.consume(async () => {
+            });
+
+            let queues = await common.getFromApi('queues');
+            let testQueue = queues.find(x => x.name === 'test');
+            testQueue.arguments['x-message-ttl'].should.equal(300);
+        });
     });
 });

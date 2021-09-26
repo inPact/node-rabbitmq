@@ -1,6 +1,8 @@
+const ms = require('ms');
 const _ = require('lodash');
 const debug = require('debug')('tabit:infra:rabbit:topology');
 const FatalError = require('./fatal_error');
+const TIME_OPTIONS = ['messageTtl', 'expires'];
 
 class TopologyBuilder {
     /** @private */
@@ -83,11 +85,7 @@ class TopologyBuilder {
      */
     async assertQueue(channel, routingKey, queueName, options = {}, queueConfig = this.topology, exchangeConfig = this.topology.exchange) {
         const topology = this.getOverrideableTopology(options, queueConfig);
-
-        // Where there is no override, there will be a mutation here (I'm not sure why) -- Nati
-        _.assign(topology, {
-            deadLetterExchange: topology.deadLetter && topology.deadLetter.dlx,
-        });
+        this._setQueueOptions(topology);
 
         queueName = queueName || topology.name || '';
         debug(`asserting queue "${queueName}" with options: `, _.omit(topology, 'deadLetterExchange', 'url', 'exchange', 'name'));
@@ -104,6 +102,18 @@ class TopologyBuilder {
             debug(`binding queue "${queueName}" to exchange "${exchangeConfig.name || '(default)'}" with routing-key "${routingKey}"`);
             await channel.bindQueue(queue, exchangeConfig.name, routingKey);
         }
+    }
+
+    _setQueueOptions(topology) {
+        _.assign(topology, {
+            deadLetterExchange: topology.deadLetter && topology.deadLetter.dlx,
+        });
+
+        _.forEach(TIME_OPTIONS, path => {
+            let val = _.get(topology, path);
+            if (typeof val === 'string')
+                _.set(topology, path, ms(val));
+        });
     }
 
     async assertDeadLetterExchange(channel, config) {

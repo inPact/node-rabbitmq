@@ -12,6 +12,7 @@
   non-direct exchanges no longer add an extra binding with the queue-name as the pattern
 * internally, removed amqplib#sendToQueue usage in favor of publishing with empty exchange-name
   BREAKING CHANGES: "useBasic" flag in #publish and #publishTo is no longer supported
+* auto-translate millisecond options from ms string formats
 
 ## 3.2.0
 * Return error response if RPC handler throws an error (instead of never responding)

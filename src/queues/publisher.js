@@ -1,6 +1,8 @@
+const ms = require('ms');
 const _ = require('lodash');
 const Promise = require('bluebird');
 const debug = require('debug')('tabit:infra:rabbit');
+const TIME_OPTIONS = ['expiration'];
 
 /**
  * Encapsulates a distributed amqp queue with a single connection
@@ -37,11 +39,7 @@ class Publisher {
     async publishTo(routingKey = '', message, { channel, ...options } = {}) {
         return new Promise(async (resolve, reject) => {
             try {
-                if (!options || !_.isBoolean(options.persistent))
-                    options = _.assign({}, options, { persistent: true });
-
-                if (options.delay)
-                    options = this._getAndVerifyDelayOptions(options);
+                options = this._setAndVerifyOptions(options);
 
                 if (!channel)
                     channel = await this.channelManager.getPublishChannel();
@@ -64,6 +62,22 @@ class Publisher {
                 reject(e);
             }
         })
+    }
+
+    _setAndVerifyOptions(options) {
+        if (!options || !_.isBoolean(options.persistent))
+            options = _.assign({}, options, { persistent: true });
+
+        if (options.delay)
+            options = this._getAndVerifyDelayOptions(options);
+
+        _.forEach(TIME_OPTIONS, path => {
+            let val = _.get(options, path);
+            if (typeof val === 'string')
+                _.set(options, path, ms(val));
+        });
+
+        return options;
     }
 
     _getAndVerifyDelayOptions(options) {
