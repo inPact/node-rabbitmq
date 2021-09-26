@@ -16,8 +16,10 @@ module.exports = class RequestReplyQueue extends DistributedQueue {
      * name of the section within {@param config} that should be looked up to retrive the configuration section.
      * @param [queueName] - the queue to publish to and consume from. If not provided, the {@param section.name} will be used.
      */
-    constructor(section, { queueName, logger = console, channelManager } = {}) {
+    constructor(topology, { queueName, logger = console, channelManager } = {}) {
         super(...arguments);
+        this.topology = topology;
+        this.channelManager = channelManager;
         this.responseEmitter = new EventEmitter();
         this.responseEmitter.setMaxListeners(0);
     }

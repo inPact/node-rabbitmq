@@ -1,35 +1,22 @@
-const _ = require('lodash');
-const Promise = require('bluebird');
-const debug = require('debug')('tabit:infra:rabbit');
-const verbose = require('debug')('tabit:infra:rabbit:verbose');
-const utils = require('@tabit/utils');
+const Publisher = require('./publisher');
+const Consumer = require('./consumer');
 
 /**
  * Encapsulates a distributed amqp queue with a single connection
  * and at most one publish channel and one consume channel.
  * @type {Queue}
  */
-
-/** Class representing a queue section. */
 class Queue {
-
     /**
-     * Create queue section
+     * Create a pub/sub adapter
      * @param {Object} topology
-     * @param {Object|String} section The queue configuration to assert, as a full configuration section object or just the name of the section within.
-     * @param {Object} [options.logger] Logger to log
-     * @param {ChannelManager} [options.channelManager] - the associated channel manager
+     * @param {Object|String} section - The queue configuration to assert, as a full configuration section object or just the name of the section within.
+     * @param {Object} [logger] - Logger to log
+     * @param {ChannelManager} [channelManager] - the associated channel manager
      */
     constructor(topology, { logger = console, channelManager } = {}) {
-        this.logger = logger;
-        this.consumers = [];
-        this.topology = topology;
-        this.exchange = _.get(topology, 'exchange', {});
-        this.exchangeName = this.exchange.name || '';
-        this.useDefaultExchange = this.exchange.useDefault;
-
-        this.channelManager = channelManager;
-        channelManager.connectionManager.on('closed', this._restartConsumers.bind(this));
+        this.publisher = new Publisher(...arguments);
+        this.consumer = new Consumer(topology, { logger, channelManager, publisher: this.publisher });
     }
 
     /**
@@ -51,81 +38,7 @@ class Queue {
      * @return {amqplib.channel}
      */
     async consume(handler, topic, { channel, ...options } = {}) {
-        if (_.isObject(topic)) {
-            ({ channel, ...options } = topic);
-            topic = undefined;
-        }
-
-        let consumeOptions = _.merge({}, this.topology, options);
-
-        if (!channel) {
-            await this._validateConsumeChannel(consumeOptions.name);
-            channel = await this.channelManager.getConsumeChannel(topic, options);
-        }
-
-        let queue = consumeOptions.name || channel.__queue;
-        this.consumers.unshift({ channel, handler, topic, options, queue });
-
-        channel.prefetch(consumeOptions.prefetch || 100);
-
-        try {
-            await channel.consume(queue, async message => {
-                if (!message)
-                    return debug(`consumption cancelled by server`);
-
-                debug(`received message on queue "${queue}", sending to handler...`);
-
-                try {
-                    await handler(message.content.toString(), message.properties, message.fields, message);
-                    if (!options.noAck) {
-                        verbose(`acking 1 to queue "${queue}"`);
-                        return channel.ack(message);
-                    }
-                } catch (e) {
-                    try {
-                        let deliveryAttempts = message.properties.headers && message.properties.headers['x-delivery-attempts'] || 1;
-                        let append = '';
-
-                        if (!e.handled)
-                            append = ` with error ${utils.errorToString(e)}`;
-
-                        this.logger.warn(`Distributed queue: delivery attempt #${deliveryAttempts} to queue "${queue}" ` +
-                                         `failed${append}`);
-
-                        if (consumeOptions.requeueToTail) {
-                            if (!consumeOptions.maxRetries || deliveryAttempts < consumeOptions.maxRetries) {
-                                message.properties.headers = _.omit(message.properties.headers, 'x-death');
-                                let properties = _.merge(message.properties, {
-                                    headers: { 'x-delivery-attempts': ++deliveryAttempts }
-                                });
-
-                                return this.publishTo(queue, message.content.toString(), properties)
-                                    .then(() => channel.ack(message))
-                                    .then(() => debug(`message requeued to queue "${queue}"`));
-                            }
-                        }
-
-                        return channel.nack(message, false, false)
-                    } catch (e) {
-                        this.logger.error('Distributed queue: Consume error handling failed: ' + e.stack)
-                    }
-                }
-            }, consumeOptions);
-
-            if (this.exchangeName)
-                this.logger.info(`Distributed queue: Consuming messages from exchange "${this.exchangeName}", ` +
-                                 `topic "${topic}", queue "${queue}"`);
-
-            else if (queue)
-                this.logger.info(`Distributed queue: Consuming messages from queue "${queue}"`);
-
-            if (debug.enabled)
-                debug(`Consuming messages from channel "${channel.getDescriptor()}"${topic ? ` on topic "${topic}"` : ''} with options: `, _.omit(consumeOptions, 'logger'));
-
-            return channel;
-        } catch (e) {
-            this.logger.error('Distributed queue: Consume failed: ' + e.stack);
-        }
+        return this.consumer.consume(...arguments);
     }
 
     /**
@@ -135,7 +48,7 @@ class Queue {
      * @returns {Promise} - fulfilled once the publish completes.
      */
     publish(entity, options = {}) {
-        return this.publishTo('', JSON.stringify(entity), options);
+        return this.publisher.publishTo('', JSON.stringify(entity), options);
     }
 
     /**
@@ -149,84 +62,7 @@ class Queue {
      * @returns a Promise that resolves when the publish completes.
      */
     async publishTo(routingKey = '', message, { channel, ...options } = {}) {
-        return new Promise(async (resolve, reject) => {
-            try {
-                if (!options || !_.isBoolean(options.persistent))
-                    options = _.assign({}, options, { persistent: true });
-
-                if (options.delay)
-                    options = this._getAndVerifyDelayOptions(options);
-
-                if (!channel)
-                    channel = await this.channelManager.getPublishChannel();
-
-                routingKey = this._getRoutingKey(routingKey, channel);
-
-                debug(`publishing message to route or queue "${routingKey}"`);
-                // TODO: Use confirm-callback instead of received + drain-event?
-
-                let received = channel.publish(this.exchangeName, routingKey, Buffer.from(message), options);
-                if (received)
-                    return resolve();
-
-                this.logger.info(`Distributed queue: publish channel blocking, waiting for drain event.`);
-                channel.once('drain', () => {
-                    this.logger.info(`Distributed queue: drain event received, continuing...`);
-                    resolve();
-                })
-            } catch (e) {
-                reject(e);
-            }
-        })
-    }
-
-    _getAndVerifyDelayOptions(options) {
-        if (!_.isNumber(options.delay))
-            throw new Error('options.delay must be a number');
-
-        if (options.delay < 0)
-            throw new Error('options.delay is negative, cannot travel to the past');
-
-        if (!_.get(this.topology, 'exchange.delayedMessages'))
-            throw new Error('to publish a delayed message please configure the exchange with delayedMessage');
-
-        return _.merge({}, _.omit(options, 'delay'), { headers: { 'x-delay': options.delay } });
-    }
-
-    _getRoutingKey(routingKey, channel) {
-        if (routingKey)
-            return routingKey;
-
-        if (this.topology.requestReply)
-            return this.topology.name;
-
-        if (this.useDefaultExchange || this.exchange.type === 'direct')
-            return channel.__queue || this.topology.name;
-
-        return '';
-    }
-
-    _restartConsumers() {
-        if (!this.consumers.length)
-            return debug(`Not restarting consumers. No consumers in queue`);
-
-        debug(`Restarting consumers. Consumers in queue: ${this.consumers.length}`);
-
-        let consumers = _.clone(this.consumers);
-        this.consumers.length = 0;
-
-        return utils.promiseWhile(() => consumers.length, () => {
-            let consumer = consumers.pop();
-            return this.consume(consumer.handler, consumer.topic, consumer.options)
-        })
-    }
-
-    _validateConsumeChannel(queue) {
-        if (this.consumers.length) {
-            let sameQueueConsumer = this.consumers.find(x => x.queue === queue);
-            if (sameQueueConsumer)
-                throw new Error('Multiple consumers registered to the same queue. If you meant to add bindings, use the "channel.addTopics" method instead');
-        }
+        return this.publisher.publishTo(...arguments);
     }
 }
 
