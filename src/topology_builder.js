@@ -2,7 +2,9 @@ const ms = require('ms');
 const _ = require('lodash');
 const debug = require('debug')('tabit:infra:rabbit:topology');
 const FatalError = require('./fatal_error');
+
 const TIME_OPTIONS = ['messageTtl', 'expires'];
+const COMMON_OMIT_FIELDS = ['url', 'api', 'logger'];
 
 class TopologyBuilder {
     /** @private */
@@ -25,7 +27,7 @@ class TopologyBuilder {
      */
     async assertTopology(channel, options = {}) {
         const topology = this.getOverrideableTopology(options);
-        debug(`building topology for channel ${channel.getDescriptor()}: from section: `, this.topology);
+        debug(`building topology for channel ${channel.getDescriptor()}: from section: `, _.omit(this.topology, COMMON_OMIT_FIELDS));
 
         if (this.topology.deadLetter)
             await this.assertDeadLetterExchange(channel, topology.deadLetter);
@@ -47,7 +49,7 @@ class TopologyBuilder {
 
     async assertExchange(exchangeConfig, channel) {
         if (!exchangeConfig && !this.topology.requestReply)
-            throw new FatalError(`${channel.getDescriptor()}: building topology failed: an exchange config is required!`)
+            throw new FatalError(`${channel.getDescriptor()}: building topology failed: an exchange config is required!`);
 
         if (exchangeConfig && exchangeConfig.name) {
             let exchangeOptions;
@@ -88,7 +90,7 @@ class TopologyBuilder {
         this._setQueueOptions(topology);
 
         queueName = queueName || topology.name || '';
-        debug(`asserting queue "${queueName}" with options: `, _.omit(topology, 'deadLetterExchange', 'url', 'exchange', 'name'));
+        debug(`asserting queue "${queueName}" with options: `, _.omit(topology, 'deadLetterExchange', 'exchange', 'name', ...COMMON_OMIT_FIELDS));
         let { queue } = await channel.assertQueue(queueName, topology);
         channel.__queue = queue;
 

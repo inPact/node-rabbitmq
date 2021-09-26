@@ -3,7 +3,7 @@ const Promise = require('bluebird');
 const debug = require('debug')('tabit:infra:rabbit:rpc');
 const uuid = require('uuid');
 const EventEmitter = require('events');
-const DistributedQueue = require('./distributed_queue');
+const DistributedQueue = require('./queue_adapter');
 const REPLY_TO_QUEUE = 'amq.rabbitmq.reply-to';
 
 /**

@@ -1,4 +1,4 @@
-const Queue = require('./distributed_queue');
+const Queue = require('./queue_adapter');
 const RequestReplyQueue = require('./request_reply_queue');
 
 module.exports = {
