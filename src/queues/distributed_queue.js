@@ -4,9 +4,9 @@ const Consumer = require('./consumer');
 /**
  * Encapsulates a distributed amqp queue with a single connection
  * and at most one publish channel and one consume channel.
- * @type {Queue}
+ * @type {QueueAdapter}
  */
-class Queue {
+class QueueAdapter {
     /**
      * Create a pub/sub adapter
      * @param {Object} topology
@@ -66,4 +66,4 @@ class Queue {
     }
 }
 
-module.exports = Queue;
+module.exports = QueueAdapter;

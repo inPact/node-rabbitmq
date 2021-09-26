@@ -16,23 +16,12 @@ class Publisher {
      */
     constructor(topology, { logger = console, channelManager } = {}) {
         this.logger = logger;
-        this.consumers = [];
         this.topology = topology;
         this.exchange = _.get(topology, 'exchange', {});
         this.exchangeName = this.exchange.name || '';
         this.useDefaultExchange = this.exchange.useDefault;
 
         this.channelManager = channelManager;
-    }
-
-    /**
-     *
-     * @param {Object} entity - A JSON entity to be serialized and published.
-     * @param {Object} [options] - publish options and/or message properties to be published (see amqplib docs).
-     * @returns {Promise} - fulfilled once the publish completes.
-     */
-    publish(entity, options = {}) {
-        return this.publishTo('', JSON.stringify(entity), options);
     }
 
     /**
