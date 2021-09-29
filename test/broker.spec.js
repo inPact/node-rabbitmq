@@ -8,11 +8,15 @@ const Promise = require('bluebird');
 describe('broker should: ', function () {
     let broker;
 
+    before(async function () {
+        await common.cleanup(broker);
+    });
+
     afterEach(async function () {
         await common.cleanup(broker);
     });
 
-    it('close all connections without consumer recovery', async function () {
+    it('close all connections without consumer recovery (@slow)', async function () {
         broker = new Broker({
             url,
             queues: {
@@ -24,7 +28,7 @@ describe('broker should: ', function () {
         });
 
         await broker.initQueue('test').consume(x => x);
-        await broker.initQueue('testBasic').publish({ the: 'entity' });
+        await broker.initQueue('test').publish({ the: 'entity' });
 
         await broker.disconnect();
 

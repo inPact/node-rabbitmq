@@ -1,6 +1,5 @@
 const _ = require('lodash');
 const should = require('chai').should();
-const { AssertionError } = require('chai');
 const Broker = require('..');
 const url = 'amqp://localhost';
 const common = require('./common');
@@ -27,28 +26,16 @@ describe('topic routing should: ', function () {
         let queueAdapter = broker.initQueue('test');
 
         // with queue-name override
-        try {
+        await common.assertFails(async () => {
             await queueAdapter.consume(x => x, 'routes.one', { name: 'my-queue' });
             await queueAdapter.consume(x => x, 'routes.two', { name: 'my-queue' });
-            should.fail('second consume to "my-queue" should fail');
-        } catch (e) {
-            if (e instanceof AssertionError)
-                throw e;
-
-            console.log(e);
-        }
+        }, { failMessage: 'second consume to "test" should fail' });
 
         // with default queue-name
-        try {
+        await common.assertFails(async () => {
             await queueAdapter.consume(x => x, 'routes.one');
             await queueAdapter.consume(x => x, 'routes.two');
-            should.fail('second consume to "test" should fail');
-        } catch (e) {
-            if (e instanceof AssertionError)
-                throw e;
-
-            console.log(e);
-        }
+        }, { failMessage: 'second consume to "test" should fail' });
     });
 
     it('allow multiple consumes on different topics on the same queue-adapter with different queue-names', async function () {
@@ -68,7 +55,7 @@ describe('topic routing should: ', function () {
         await queueAdapter.consume(x => x, 'routes.two', { name: 'a-different-queue' });
     });
 
-    it('bind consume channel to additional topics', async function () {
+    it('bind consume channel to additional topics (@slow)', async function () {
         this.timeout(20000);
         await Promise.delay(5000);
         let previousChannelsCount = (await common.getFromApi('channels')).length;
@@ -124,15 +111,10 @@ describe('topic routing should: ', function () {
 
         let queueAdapter = broker.initQueue('test');
         let channel = await queueAdapter.consume(x => x);
-        try {
-            await channel.addTopics('routes.two');
-            should.fail('adding topics to non-topic exchanges should be prohibited');
-        } catch (e) {
-            if (e instanceof AssertionError)
-                throw e;
 
-            console.log(e);
-        }
+        await common.assertFails(() => channel.addTopics('routes.two'), {
+            failMessage: 'adding topics to non-topic exchanges should be prohibited'
+        });
     });
 
     it('un-bind consume channel from topics', async function () {
@@ -168,5 +150,4 @@ describe('topic routing should: ', function () {
         await Promise.delay(100);
         received.should.equal(1);
     });
-
 });
