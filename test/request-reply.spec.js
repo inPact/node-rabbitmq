@@ -23,7 +23,7 @@ describe('request-reply should: ', function () {
     });
 
     afterEach(async function () {
-        await common.cleanup(broker, [], 'test-reply-to');
+        await common.cleanup(broker);
     });
 
     it('send and receive via direct reply-to queue', async function () {

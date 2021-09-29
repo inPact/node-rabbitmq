@@ -18,7 +18,7 @@ class ConnectionManager extends EventEmitter {
         this.logger = logger;
     }
 
-    async getConnection(config = this.config) {
+    async getConnection(config) {
         return lock.getWithDoubleCheck(
             () => this.connection,
             'Queue.getConnection',
@@ -52,6 +52,17 @@ class ConnectionManager extends EventEmitter {
 
                 return connection;
             });
+    }
+
+    dispose() {
+        if (!this.connection)
+            return;
+
+        this.logger.warn('Distributed queue: destroying connection without consumer recovery');
+        this.connection.removeAllListeners('close');
+        this.connection.removeAllListeners('error');
+
+        this.connection.close();
     }
 }
 

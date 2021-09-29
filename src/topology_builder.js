@@ -1,48 +1,71 @@
+const ms = require('ms');
 const _ = require('lodash');
-const Promise = require('bluebird');
 const debug = require('debug')('tabit:infra:rabbit:topology');
+const FatalError = require('./fatal_error');
+
+const TIME_OPTIONS = ['messageTtl', 'expires'];
+const COMMON_OMIT_FIELDS = ['url', 'api', 'logger'];
 
 class TopologyBuilder {
+    /** @private */
     constructor(topology) {
-        this.topology = _.omit(topology, 'logger');
+        this.topology = _.cloneDeep(topology);
+    }
+
+    static forSection(section) {
+        return new TopologyBuilder(section)
     }
 
     /**
      * Creates the topology matching {@link config}. If a dead letter queue is defined in {@link config}, first creates
      * the dlq.
      * @param channel
-     * @param [options] {Object}
-     * @param [options.override] {Object} - any desired overrides of the default configuration that was provided
+     * @param {Object} [options]
+     * @param {Object} [options.override] - any desired overrides of the default configuration that was provided
      * when this instance was created.
      * @returns {Promise.<TResult>}
      */
     async assertTopology(channel, options = {}) {
-        debug(`building topology: `, this.topology);
         const topology = this.getOverrideableTopology(options);
+        debug(`building topology for channel ${channel.getDescriptor()}: from section: `, _.omit(this.topology, COMMON_OMIT_FIELDS));
 
         if (this.topology.deadLetter)
             await this.assertDeadLetterExchange(channel, topology.deadLetter);
 
         await this.assertExchangeAndQueue(channel, topology, topology.exchange);
-        debug(`topology built successfully`);
+        debug(`topology for channel ${channel.getDescriptor()} built successfully`);
     }
 
     async assertExchangeAndQueue(channel, queueConfig = this.topology, exchangeConfig = this.topology.exchange) {
-        if (exchangeConfig && exchangeConfig.name) {
-            if (exchangeConfig.delayedMessages) {
-                await channel.assertExchange(exchangeConfig.name, 'x-delayed-message', {
-                    arguments: { 'x-delayed-type': exchangeConfig.type }
-                });
-            } else {
-                await channel.assertExchange(exchangeConfig.name, exchangeConfig.type);
-            }
-        }
+        await this.assertExchange(exchangeConfig, channel);
 
         if (_.get(exchangeConfig, 'type') === 'topic' ||
-            _.get(exchangeConfig, 'bindQueue') === false)
+            _.get(exchangeConfig, 'bindQueue') === false ||
+            channel.__type === 'pub')
             return;
 
         return await this.assertQueue(channel, '', queueConfig.name, {}, queueConfig, exchangeConfig);
+    }
+
+    async assertExchange(exchangeConfig, channel) {
+        if (!exchangeConfig && !this.topology.requestReply)
+            throw new FatalError(`${channel.getDescriptor()}: building topology failed: an exchange config is required!`);
+
+        if (exchangeConfig && exchangeConfig.name) {
+            let exchangeOptions;
+            if (exchangeConfig.delayedMessages) {
+                exchangeOptions = { arguments: { 'x-delayed-type': exchangeConfig.type } };
+                exchangeConfig.type = 'x-delayed-message';
+            }
+
+            if (!exchangeConfig.type)
+                // although this is the default, making it explicit adds clarity to the topology construction
+                exchangeConfig.type = 'direct';
+
+            debug(`asserting exchange "${exchangeConfig.name}" with type "${exchangeConfig.type}" and options:`, exchangeOptions);
+            await channel.assertExchange(exchangeConfig.name, exchangeConfig.type, exchangeOptions);
+            channel.__exchange = exchangeConfig.name;
+        }
     }
 
     /**
@@ -55,29 +78,44 @@ class TopologyBuilder {
      * {@link routingKey}.
      * @param channel
      * @param routingKey
-     * @param queue
+     * @param queueName
      * @param queueConfig
      * @param exchangeConfig
-     * @param [options] {Object}
-     * @param [options.override] {Object} - any desired overrides of the default configuration that was provided
+     * @param {Object} [options]
+     * @param {Object} [options.override] - any desired overrides of the default configuration that was provided
      * when this instance was created.
      */
-    async assertQueue(channel, routingKey, queue, options = {}, queueConfig = this.topology, exchangeConfig = this.topology.exchange) {
+    async assertQueue(channel, routingKey, queueName, options = {}, queueConfig = this.topology, exchangeConfig = this.topology.exchange) {
         const topology = this.getOverrideableTopology(options, queueConfig);
+        this._setQueueOptions(topology);
 
-        // Where there is no override, there will be a mutation here (I'm not sure why) -- Nati
+        queueName = queueName || topology.name || '';
+        debug(`asserting queue "${queueName}" with options: `, _.omit(topology, 'deadLetterExchange', 'exchange', 'name', ...COMMON_OMIT_FIELDS));
+        let { queue } = await channel.assertQueue(queueName, topology);
+        channel.__queue = queue;
+
+        if (exchangeConfig) {
+            if (exchangeConfig.useDefault)
+                return;
+
+            if (exchangeConfig.type === 'direct')
+                routingKey = queueName;
+
+            debug(`binding queue "${queueName}" to exchange "${exchangeConfig.name || '(default)'}" with routing-key "${routingKey}"`);
+            await channel.bindQueue(queue, exchangeConfig.name, routingKey);
+        }
+    }
+
+    _setQueueOptions(topology) {
         _.assign(topology, {
             deadLetterExchange: topology.deadLetter && topology.deadLetter.dlx,
         });
 
-        let res = await channel.assertQueue(queue || topology.name || '', topology);
-        channel.__queue = res.queue;
-
-        if (exchangeConfig) {
-            await channel.bindQueue(res.queue, exchangeConfig.name, routingKey);
-            // Add a private binding
-            await channel.bindQueue(res.queue, exchangeConfig.name, res.queue);
-        }
+        _.forEach(TIME_OPTIONS, path => {
+            let val = _.get(topology, path);
+            if (typeof val === 'string')
+                _.set(topology, path, ms(val));
+        });
     }
 
     async assertDeadLetterExchange(channel, config) {

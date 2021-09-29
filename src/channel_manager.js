@@ -1,38 +1,21 @@
 const _ = require('lodash');
 const utils = require('@tabit/utils');
-
-const TopologyBuilder = require('./topology_builder');
-const ConnectionManager = require('./connection_manager');
 const Retry = utils.Retry;
 
 class ChannelManager {
     /**
      * Create channel manager
-     * @param {Object} config The queue section configuration to assert.
+     * @param {ConnectionManager} connectionManager The associated connection manager
+     * @param {TopologyBuilder} topologyBuilder The associated topology builder
      * @param {Object} [options] Optional options
      * @param {Object} [options.logger] Logger to log
-     * @param {TopologyBuilder} [options.topologyBuilder] The associated topology builder
-     * @param {ConnectionManager} [options.connectionManager] The associated connection manager
      */
-    constructor(config, { logger = console, topologyBuilder, connectionManager } = {}) {
-        this.config = config;
-        this.connectionManager = connectionManager || new ConnectionManager(config, { logger });
-        this.topologyBuilder = topologyBuilder || new TopologyBuilder(config);
+    constructor(connectionManager, topologyBuilder, { logger = console } = {}) {
+        this.topologyBuilder = topologyBuilder;
+        this.topology = topologyBuilder.topology;
+        this.connectionManager = connectionManager;
         this.channels = { pub: null, sub: null };
         this.logger = logger;
-    }
-
-    /**
-     *
-     * @param section
-     * @returns {ChannelManager}
-     */
-    forSection(section) {
-        return new ChannelManager(section, {
-            logger: this.logger,
-            connectionManager: this.connectionManager,
-            topologyBuilder: new TopologyBuilder(section)
-        });
     }
 
     async getPublishChannel() {
@@ -44,11 +27,11 @@ class ChannelManager {
 
     /**
      * @param topic
-     * @param [options] {Object}
-     * @param [options.name] {String}
-     * @param [options.override] {Object} - any desired overrides of the default configuration that was provided
+     * @param {Object} [options]
+     * @param {String} [options.name]
+     * @param {Object} [options.override] - any desired overrides of the default configuration that was provided
      * when this instance was created.
-     * @returns {*}
+     * @returns amqplib channel
      */
     async getConsumeChannel(topic, options) {
         if (!topic) {
@@ -61,17 +44,18 @@ class ChannelManager {
         return this._createTopicChannel(topic, options);
     }
 
-    getConnection(config = this.config) {
+    getConnection(config) {
         return this.connectionManager.getConnection(config);
     }
 
     /**
      *
      * @param topic
-     * @param [options] {Object}
-     * @param [options.name] {String}
-     * @param [options.override] {Object} - any desired overrides of the default configuration that was provided
+     * @param {Object} [options]
+     * @param {String} [options.name]
+     * @param {Object} [options.override] - any desired overrides of the default configuration that was provided
      * when this instance was created.
+     * @returns amqplib channel
      * @private
      */
     _createTopicChannel(topic, options = {}) {
@@ -98,13 +82,13 @@ class ChannelManager {
      * @param {Object} [options]
      * @param {Object}[options.override] - any desired overrides of the default configuration that was provided
      * when this instance was created.
-     * @returns {*}
+     * @returns amqplib channel
      * @private
      */
     async _createChannel(channelType, options) {
         if (_.isObject(channelType)) {
             options = channelType;
-            channelType = undefined;
+            channelType = 'sub';
         }
 
         return await new Retry(
@@ -115,7 +99,12 @@ class ChannelManager {
                     await this.topologyBuilder.assertTopology(channel, options);
                     return channel;
                 }),
-            { delay: 1000, maxTime: Infinity, title: 'Distributed queue' })
+            {
+                delay: 1000,
+                maxTime: Infinity,
+                title: 'Distributed queue',
+                retryErrorMatch: e => e.retry !== false
+            })
             .execute();
     }
 
@@ -127,9 +116,23 @@ class ChannelManager {
 
     /** @private */
     _manageChannel(channel, channelType) {
-
         channel.getDescriptor = function () {
             return descriptor(this);
+        };
+
+        let topology = this.topologyBuilder.topology;
+        channel.addTopics = async function (...patterns) {
+            verifyTopicExchange(this, topology);
+
+            for (let pattern of patterns)
+                await this.bindQueue(this.__queue, this.__exchange, pattern);
+        };
+
+        channel.removeTopics = async function (...patterns) {
+            verifyTopicExchange(this, topology);
+
+            for (let pattern of patterns)
+                await this.unbindQueue(this.__queue, this.__exchange, pattern);
         };
 
         if (channelType) {
@@ -148,19 +151,29 @@ class ChannelManager {
                 : '';
             this.logger.error(`Distributed queue error in channel "${channel.getDescriptor()}": ` + utils.errorToString(e) + append);
             this._clearChannel(channel);
-        })
+        });
     }
 }
 
+function verifyTopicExchange(channel, topology) {
+    if (!channel.__exchange || !topology.exchange || topology.exchange.type !== 'topic')
+        throw new Error('cannot add topics to non-topic exchanges');
+}
+
 function descriptor(channel) {
-    let parts = [];
-    if (channel.__name || channel.__queue)
-        parts.push(channel.__name || channel.__queue);
+    let isSub = channel.__type === 'sub';
+    let parts = ['x:' + (channel.__exchange || '(default)')];
+
+    if (isSub && (channel.__name || channel.__queue))
+        parts.push('q:' + (channel.__name || channel.__queue));
 
     if (channel.__type)
         parts.push(channel.__type);
 
-    return `${_.join(parts, ':')}(${channel.ch})`;
+    if (!isSub)
+        _.reverse(parts);
+
+    return `${_.join(parts, '->')}(${channel.ch})`;
 }
 
 module.exports = ChannelManager;

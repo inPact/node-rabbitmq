@@ -3,21 +3,8 @@ const Promise = require('bluebird');
 const debug = require('debug')('tabit:infra:rabbit:rpc');
 const uuid = require('uuid');
 const EventEmitter = require('events');
-const DistributedQueue = require('./distributed_queue');
+const DistributedQueue = require('./queue_adapter');
 const REPLY_TO_QUEUE = 'amq.rabbitmq.reply-to';
-
-async function executeHandler(handler, data, props, fields) {
-    try {
-        return await handler(data, props, fields);
-    } catch (e) {
-        return {
-            error: {
-                message: e.message,
-                stack: e.stack
-            }
-        }
-    }
-}
 
 /**
  * Encapsulates a rabbitmq direct reply-to queue.
@@ -29,8 +16,10 @@ module.exports = class RequestReplyQueue extends DistributedQueue {
      * name of the section within {@param config} that should be looked up to retrive the configuration section.
      * @param [queueName] - the queue to publish to and consume from. If not provided, the {@param section.name} will be used.
      */
-    constructor(section, { queueName, logger = console, channelManager } = {}) {
+    constructor(topology, { queueName, logger = console, channelManager } = {}) {
         super(...arguments);
+        this.topology = topology;
+        this.channelManager = channelManager;
         this.responseEmitter = new EventEmitter();
         this.responseEmitter.setMaxListeners(0);
     }
@@ -41,7 +30,7 @@ module.exports = class RequestReplyQueue extends DistributedQueue {
 
         let responder = async (data, props, fields, msg) => {
             let channel = await this.channelManager.getConsumeChannel();
-            let description = descriptor({ queue: this.config.name, correlationId: props.correlationId, channel });
+            let description = descriptor({ queue: this.topology.name, correlationId: props.correlationId, channel });
 
             debug(`Q-->* received request from ${description}, sending to handler...`);
             let response = await executeHandler(handler, data, props, fields);
@@ -49,7 +38,6 @@ module.exports = class RequestReplyQueue extends DistributedQueue {
             debug(`Q<--* sending response to ${description}`);
             await this.publishTo(props.replyTo, this._serialize(response), {
                 channel,
-                useBasic: true,
                 correlationId: props.correlationId
             });
         };
@@ -73,7 +61,7 @@ module.exports = class RequestReplyQueue extends DistributedQueue {
 
         return new Promise(resolve => {
             this.responseEmitter.once(correlationId, async response => resolve(this._deserialize(response)));
-            debug(`*-->Q publishing message to ${descriptor({ queue: this.config.name, correlationId, channel })}`);
+            debug(`*-->Q publishing message to ${descriptor({ queue: this.topology.name, correlationId, channel })}`);
             super.publish(entity, { channel, ...options });
         })
     }
@@ -88,7 +76,7 @@ module.exports = class RequestReplyQueue extends DistributedQueue {
     async _createReplyListener(channel) {
         await super.consume(
             (data, props) => {
-                let description = descriptor({ queue: this.config.name, correlationId: props.correlationId, channel });
+                let description = descriptor({ queue: this.topology.name, correlationId: props.correlationId, channel });
                 debug(`*<--Q received response from ${description}, sending to handler...`);
                 this.responseEmitter.emit(props.correlationId, data);
             },
@@ -137,4 +125,17 @@ function descriptor({ queue, correlationId, channel }) {
         parts.push(`on channel "${channel.getDescriptor()}"`);
 
     return _.join(parts, ' ');
+}
+
+async function executeHandler(handler, data, props, fields) {
+    try {
+        return await handler(data, props, fields);
+    } catch (e) {
+        return {
+            error: {
+                message: e.message,
+                stack: e.stack
+            }
+        }
+    }
 }
