@@ -1,4 +1,4 @@
-## NEXT
+# 4.0.0
 * add explicit method to add/remove topic-bindings to/from existing queues via methods on consume-channel
 
 ## 3.2.0
