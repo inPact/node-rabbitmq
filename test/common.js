@@ -80,9 +80,11 @@ module.exports = {
     },
 
     async deleteViaApi(entityType, name, { addDefaultVhost = true } = {}) {
+        let vhost = addDefaultVhost ? '%2F/' : '';
         let response = await superagent
-            .delete(`${API_URL}/${entityType}/${addDefaultVhost ? '%2F/' : ''}${name}`)
+            .delete(`${API_URL}/${entityType}/${vhost}${name}`)
             .auth(...API_AUTH_ARGS);
+
         return response.body;
     }
 };
