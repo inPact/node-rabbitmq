@@ -26,10 +26,6 @@ function getTestDelayableBroker() {
 }
 
 async function cleanup() {
-    const queues = await common.getFromApi('queues');
-    const exchanges = await common.getFromApi('exchanges');
-    const exchangeName = exchanges.find(x => x.name === DELAY_EXCHANGE_NAME) ? DELAY_EXCHANGE_NAME : null;
-    const queueName = queues.find(q => q.name === QUEUE_NAME) ? QUEUE_NAME : null;
     await common.cleanup();
 }
 
@@ -168,6 +164,64 @@ describe('Delayed messages', function() {
         });
     });
 
+    describe('delayed message, publish with ms delay', function () {
+        let queueAdapter;
+
+        before('cleanup', cleanup);
+
+        before('creating exchange', async function() {
+            queueAdapter = getTestDelayableBroker().initQueue('testDelay');
+        });
+
+        before('consuming', async function() {
+            await queueAdapter.consume((message, { headers }) => {
+                incomingMessages.push({ message, headers });
+            }, 'test.*.delay.topic');
+        });
+
+        before('publishing', async function() {
+            await queueAdapter.publishTo('test.no.delay.topic', 'hi there 2', {
+                delay: '0.4s',
+                headers: {
+                    'x-what': 'bar'
+                },
+            });
+        });
+
+        it('should not receive the message during delay', function(done) {
+            const handleMessage = sinon.stub();
+            common.readDataFrom(incomingMessages, handleMessage, errors => {
+                try {
+                    expect(errors).to.not.be.ok;
+                    expect(handleMessage.callCount, 'message was not delayed').to.equal(0);
+                    done();
+                } catch (err) {
+                    done(err);
+                }
+            }, 300);
+        });
+
+        it('should receive the message after delay', function(done) {
+            const handleMessage = sinon.stub();
+            common.readDataFrom(incomingMessages, handleMessage, errors => {
+                try {
+                    expect(errors).to.not.be.ok;
+                    expect(handleMessage.callCount).to.equal(1);
+                    const firstCallArg = handleMessage.firstCall.args[0];
+                    expect(firstCallArg).to.have.property('message');
+                    expect(firstCallArg.message).to.equal('hi there 2');
+                    expect(firstCallArg).to.have.property('headers');
+                    expect(firstCallArg.headers).to.deep.equal({
+                        'x-delay': 400,
+                        'x-what': 'bar'
+                    })
+                    done();
+                } catch (err) {
+                    done(err);
+                }
+            });
+        });
+    });
 
     after(async function () {
         await cleanup();
