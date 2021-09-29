@@ -43,7 +43,7 @@ module.exports = {
     },
 
     async deleteViaApi(entityType, name, { addDefaultVhost = true } = {}) {
-        let vhost = addDefaultVhost ? '%2F/' : '';
+        let vhost = addDefaultVhost ? encodeURIComponent('/') + '/' : '';
         let response = await superagent
             .delete(`${API_URL}/${entityType}/${vhost}${name}`)
             .auth(...API_AUTH_ARGS);

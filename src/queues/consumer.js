@@ -142,7 +142,7 @@ class Consumer {
         if (this.consumers.length) {
             let sameQueueConsumer = this.consumers.find(x => x.queue === queue);
             if (sameQueueConsumer)
-                throw new Error('Multiple consumers registered to the same queue. If you meant to add bindings, use the "channel.addTopics" method instead');
+                throw new Error(`A consumer is already configured for queue "${queue}". If you meant to add bindings, use the "channel.addTopics" method instead`);
         }
     }
 }

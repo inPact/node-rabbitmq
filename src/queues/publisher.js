@@ -2,7 +2,7 @@ const ms = require('ms');
 const _ = require('lodash');
 const Promise = require('bluebird');
 const debug = require('debug')('tabit:infra:rabbit');
-const TIME_OPTIONS = ['expiration'];
+const TIME_OPTIONS = ['expiration', 'delay'];
 
 /**
  * Encapsulates a distributed amqp queue with a single connection
@@ -68,14 +68,14 @@ class Publisher {
         if (!options || !_.isBoolean(options.persistent))
             options = _.assign({}, options, { persistent: true });
 
-        if (options.delay)
-            options = this._getAndVerifyDelayOptions(options);
-
         _.forEach(TIME_OPTIONS, path => {
             let val = _.get(options, path);
             if (typeof val === 'string')
                 _.set(options, path, ms(val));
         });
+
+        if (options.delay)
+            options = this._getAndVerifyDelayOptions(options);
 
         return options;
     }
