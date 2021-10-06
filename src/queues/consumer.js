@@ -94,7 +94,7 @@ class Consumer {
                                     headers: { 'x-delivery-attempts': ++deliveryAttempts }
                                 });
 
-                                return this.publisher.publishTo(queue, message.content.toString(), properties)
+                                return this.publisher.publishTo(queue, message.content.toString(), { basic: true, ...properties })
                                     .then(() => channel.ack(message))
                                     .then(() => debug(`message requeued to queue "${queue}"`));
                             }
