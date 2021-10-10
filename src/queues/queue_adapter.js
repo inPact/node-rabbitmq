@@ -14,9 +14,9 @@ class QueueAdapter {
      * @param {Object} [logger] - Logger to log
      * @param {ChannelManager} [channelManager] - the associated channel manager
      */
-    constructor(topology, { logger = console, channelManager } = {}) {
-        this.publisher = new Publisher(...arguments);
-        this.consumer = new Consumer(topology, { logger, channelManager, publisher: this.publisher });
+    constructor(topology, { logger = console, channelManager, publisher, consumer } = {}) {
+        this.publisher = publisher || new Publisher(...arguments);
+        this.consumer = consumer || new Consumer(topology, { logger, channelManager, publisher: this.publisher });
     }
 
     /**

@@ -261,7 +261,7 @@ describe('messaging: ', function () {
             handling.should.equal(PREFETCH);
 
             // wait for the remaining messages to clear out
-            await Promise.delay(1000);
+            await Promise.delay(500);
         });
 
         it('override root config options with queue options', async function () {

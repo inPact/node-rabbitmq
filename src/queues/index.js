@@ -1,11 +1,18 @@
+const _ = require('lodash');
 const Queue = require('./queue_adapter');
 const RequestReplyQueue = require('./request_reply_queue');
+const DelayedQueue = require('./delayed');
 
 module.exports = {
-    create(section, { broker, ...options } = {}) {
-        if (section.requestReply)
-            return new RequestReplyQueue(section, options);
+    create(topologyBuilder, { broker, ...options } = {}) {
+        let topology = topologyBuilder.topology;
 
-        return new Queue(section, options);
+        if (RequestReplyQueue.isRpc(topology))
+            return new RequestReplyQueue(topology, options);
+
+        if (DelayedQueue.isDelayed(topology))
+            return new DelayedQueue(topologyBuilder, options);
+
+        return new Queue(topology, options);
     }
 };

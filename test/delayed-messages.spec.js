@@ -1,6 +1,5 @@
 const { expect } = require('chai');
 const { Readable } = require('stream');
-const Promise = require('bluebird');
 const sinon = require('sinon');
 const common = require('./common');
 const Broker = require('..');
@@ -16,10 +15,10 @@ function createDelayableBroker({ queueOptions } = {}) {
         queues: {
             testDelay: {
                 name: QUEUE_NAME,
+                delayed: true,
                 exchange: {
                     name: DELAY_EXCHANGE_NAME,
-                    type: 'topic',
-                    delayedMessages: true,
+                    type: 'topic'
                 },
                 ...queueOptions
             }
@@ -37,11 +36,6 @@ describe('Delayed messages', function () {
     const incomingMessages = new Readable({
         objectMode: true, read() { /* Do nothing because no source, we will push */
         }
-    });
-
-    before('stopping logging', async function () {
-        sinon.stub(console, 'log');
-        sinon.stub(console, 'info');
     });
 
     describe('special exchange for delayed messages', function () {

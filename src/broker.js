@@ -29,7 +29,7 @@ module.exports = class {
         section = fixSection(section, queueName, sectionOverride);
         let topologyBuilder = TopologyBuilder.forSection(section);
 
-        return queueFactory.create(topologyBuilder.topology, {
+        return queueFactory.create(topologyBuilder, {
             queueName,
             logger: this.logger,
             channelManager: new ChannelManager(this.connectionManager, topologyBuilder, { logger: this.logger })

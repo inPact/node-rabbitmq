@@ -16,6 +16,7 @@ class TopologyBuilder {
         return new TopologyBuilder(section)
     }
 
+    // noinspection JSUnusedGlobalSymbols
     /**
      * Creates the topology matching {@link config}. If a dead letter queue is defined in {@link config}, first creates
      * the dlq.
@@ -51,21 +52,17 @@ class TopologyBuilder {
         if (!exchangeConfig && !this.topology.requestReply)
             throw new FatalError(`${channel.getDescriptor()}: building topology failed: an exchange config is required!`);
 
-        if (exchangeConfig && exchangeConfig.name) {
-            let exchangeOptions;
-            if (exchangeConfig.delayedMessages) {
-                exchangeOptions = { arguments: { 'x-delayed-type': exchangeConfig.type || 'direct' } };
-                exchangeConfig.type = 'x-delayed-message';
-            }
+        if (!exchangeConfig || !exchangeConfig.name)
+            return;
 
-            if (!exchangeConfig.type)
-                // although this is the default, making it explicit adds clarity to the topology construction
-                exchangeConfig.type = 'direct';
+        let exchangeOptions = _.omit(exchangeConfig, 'name', 'type', 'delayedMessages', 'requestReply', 'useDefault');
+        if (!exchangeConfig.type)
+            // although this is the default, making it explicit adds clarity to the topology construction
+            exchangeConfig.type = 'direct';
 
-            debug(`asserting exchange "${exchangeConfig.name}" with type "${exchangeConfig.type}" and options:`, exchangeOptions);
-            await channel.assertExchange(exchangeConfig.name, exchangeConfig.type, exchangeOptions);
-            channel.__exchange = exchangeConfig.name;
-        }
+        debug(`asserting exchange "${exchangeConfig.name}" with type "${exchangeConfig.type}" and options:`, exchangeOptions);
+        await channel.assertExchange(exchangeConfig.name, exchangeConfig.type, exchangeOptions);
+        channel.__exchange = exchangeConfig.name;
     }
 
     /**
@@ -103,6 +100,11 @@ class TopologyBuilder {
 
             debug(`binding queue "${queueName}" to exchange "${exchangeConfig.name || '(default)'}" with routing-key "${routingKey}"`);
             await channel.bindQueue(queue, exchangeConfig.name, routingKey);
+
+            if (this.bindDirect) {
+                debug(`binding queue "${queueName}" to exchange "${exchangeConfig.name || '(default)'}" with routing-key "${queueName}"`);
+                await channel.bindQueue(queue, exchangeConfig.name, queueName);
+            }
         }
     }
 
@@ -134,6 +136,10 @@ class TopologyBuilder {
             return _.merge({}, topology, options.override);
 
         return topology;
+    }
+
+    addDirectQueueBinding() {
+        this.bindDirect = true;
     }
 }
 
