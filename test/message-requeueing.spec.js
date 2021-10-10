@@ -30,7 +30,6 @@ describe('requeueToTail', function () {
             let queue = broker.initQueue('test');
 
             await queue.consume(async (message, { headers }) => {
-                console.log(`======================================= 1 =======================================`);
                 received.push({ message })
 
                 if (headers['x-delivery-attempts'] >= MANUAL_REQUEUE_COUNT_STOP_CONDITION)
@@ -59,7 +58,6 @@ describe('requeueToTail', function () {
                 }
             });
 
-
             let received = [];
             let queue = broker.initQueue('test');
 
@@ -72,44 +70,6 @@ describe('requeueToTail', function () {
 
             await Promise.delay(300);
             received.length.should.equal(MAX_RETRIES);
-        });
-
-        // TODO
-        it.skip('should ack and requeue with delay', async function () {
-            const MAX_RETRIES = 3;
-            broker = new Broker({
-                url,
-                queues: {
-                    test: {
-                        name: 'test',
-                        exchange: {
-                            name: 'test',
-                            delayedMessages: true
-                        },
-                        requeueToTail: true,
-                        maxRetries: MAX_RETRIES
-                    }
-                }
-            });
-
-            let start;
-            let received = [];
-            let queue = broker.initQueue('test');
-
-            await queue.consume(async (message) => {
-                received.push({ message, delay: Date.now() - start })
-                start = Date.now();
-                throw new Error('requeue');
-            });
-
-            start = Date.now();
-            await queue.publish({ the: 'entity' }, { delay: 100 });
-
-            await Promise.delay(500);
-            received.length.should.equal(MAX_RETRIES);
-            received.forEach(entry => {
-                entry.delay.should.be.at.least(100);
-            })
         });
     });
 
@@ -130,7 +90,6 @@ describe('requeueToTail', function () {
                     }
                 }
             });
-
 
             let queueOneReceived = [];
             let queueTwoReceived = [];
@@ -168,7 +127,6 @@ describe('requeueToTail', function () {
                     }
                 }
             });
-
 
             let queueOneReceived = [];
             let queueTwoReceived = [];
