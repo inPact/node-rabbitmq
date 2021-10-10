@@ -29,6 +29,11 @@ class Publisher {
     /**
      * @param {string} routingKey the name of the queue or topic to publish to.
      * @param {string} message the message to publish.
+     * @param channel
+     * @param {Boolean} [basic] - true to override the default behavior and publish the message via the default
+     * amqp exchange rather than the exchange configured for this publisher. When publishing via the default exchange,
+     * the routing key denotes the queue that the message will be routed to.
+     * Essentially, if true, the publish will behave like amqplib#sendToQueue (see {@link http://www.squaremobius.net/amqp.node/channel_api.html#channel_sendToQueue}).
      * @param {Object} [options={}] the options to attach to the published message.
      * @param {Object} [options.channel] override default amqplib channel.
      * @param {boolean} [options.persistent] whether published messages should be persistent or not
@@ -36,7 +41,7 @@ class Publisher {
      * @param {boolean} [options.done] for internal use.
      * @returns a Promise that resolves when the publish completes.
      */
-    async publishTo(routingKey = '', message, { channel, ...options } = {}) {
+    async publishTo(routingKey = '', message, { channel, basic, ...options } = {}) {
         return new Promise(async (resolve, reject) => {
             try {
                 options = this._setAndVerifyOptions(options);
@@ -44,12 +49,13 @@ class Publisher {
                 if (!channel)
                     channel = await this.channelManager.getPublishChannel();
 
+                let exchangeName = basic ? '' : this.exchangeName;
                 routingKey = this._getRoutingKey(routingKey, channel);
 
-                debug(`publishing message to route or queue "${routingKey}"`);
+                debug(`publishing message to exchange "${exchangeName}" with routing-key "${routingKey}"`);
                 // TODO: Use confirm-callback instead of received + drain-event?
 
-                let received = channel.publish(this.exchangeName, routingKey, Buffer.from(message), options);
+                let received = channel.publish(exchangeName, routingKey, Buffer.from(message), options);
                 if (received)
                     return resolve();
 
