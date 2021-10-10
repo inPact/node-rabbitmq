@@ -54,7 +54,7 @@ class TopologyBuilder {
         if (exchangeConfig && exchangeConfig.name) {
             let exchangeOptions;
             if (exchangeConfig.delayedMessages) {
-                exchangeOptions = { arguments: { 'x-delayed-type': exchangeConfig.type } };
+                exchangeOptions = { arguments: { 'x-delayed-type': exchangeConfig.type || 'direct' } };
                 exchangeConfig.type = 'x-delayed-message';
             }
 
