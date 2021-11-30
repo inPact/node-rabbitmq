@@ -87,18 +87,8 @@ class Consumer {
                         this.logger.warn(`Distributed queue: delivery attempt #${deliveryAttempts} to queue "${queue}" ` +
                                          `failed${append}`);
 
-                        if (consumeOptions.requeueToTail) {
-                            if (!consumeOptions.maxRetries || deliveryAttempts < consumeOptions.maxRetries) {
-                                message.properties.headers = _.omit(message.properties.headers, 'x-death');
-                                let properties = _.merge(message.properties, {
-                                    headers: { 'x-delivery-attempts': ++deliveryAttempts }
-                                });
-
-                                return this.publisher.publishTo(queue, message.content.toString(), { basic: true, ...properties })
-                                    .then(() => channel.ack(message))
-                                    .then(() => debug(`message requeued to queue "${queue}"`));
-                            }
-                        }
+                        if (consumeOptions.requeueToTail)
+                            return await this._requeueToTail(channel, queue, message, consumeOptions, deliveryAttempts);
 
                         return channel.nack(message, false, false)
                     } catch (e) {
@@ -121,6 +111,20 @@ class Consumer {
         } catch (e) {
             this.logger.error('Distributed queue: Consume failed: ' + e.stack);
         }
+    }
+
+    async _requeueToTail(channel, queue, message, consumeOptions, deliveryAttempts) {
+        if (consumeOptions.maxRetries && deliveryAttempts >= consumeOptions.maxRetries)
+            return;
+
+        message.properties.headers = _.omit(message.properties.headers, 'x-death');
+        let properties = _.merge(message.properties, {
+            headers: { 'x-delivery-attempts': ++deliveryAttempts }
+        });
+
+        await this.publisher.publishTo(queue, message.content.toString(), { basic: true, ...properties });
+        await channel.ack(message);
+        debug(`message requeued to queue "${queue}"`);
     }
 
     _restartConsumers() {

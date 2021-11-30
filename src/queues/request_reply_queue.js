@@ -3,14 +3,14 @@ const Promise = require('bluebird');
 const debug = require('debug')('tabit:infra:rabbit:rpc');
 const uuid = require('uuid');
 const EventEmitter = require('events');
-const DistributedQueue = require('./queue_adapter');
+const QueueAdapter = require('./queue_adapter');
 const REPLY_TO_QUEUE = 'amq.rabbitmq.reply-to';
 
 /**
  * Encapsulates a rabbitmq direct reply-to queue.
- * @type {Queue}
+ * @type {QueueAdapter}
  */
-module.exports = class RequestReplyQueue extends DistributedQueue {
+module.exports = class RequestReplyQueue extends QueueAdapter {
     /**
      * @param section {Object|String} - the queue configuration to assert, as a full configuration section object or just the
      * name of the section within {@param config} that should be looked up to retrive the configuration section.
@@ -22,6 +22,11 @@ module.exports = class RequestReplyQueue extends DistributedQueue {
         this.channelManager = channelManager;
         this.responseEmitter = new EventEmitter();
         this.responseEmitter.setMaxListeners(0);
+    }
+
+    // noinspection JSUnusedGlobalSymbols
+    static isRpc(topology) {
+        return topology.requestReply;
     }
 
     async consume(handler, topic, options) {

@@ -1,5 +1,6 @@
 const ms = require('ms');
 const _ = require('lodash');
+const utility = require('../utility');
 const Promise = require('bluebird');
 const debug = require('debug')('tabit:infra:rabbit');
 const TIME_OPTIONS = ['expiration', 'delay'];
@@ -7,9 +8,8 @@ const TIME_OPTIONS = ['expiration', 'delay'];
 /**
  * Encapsulates a distributed amqp queue with a single connection
  * and at most one publish channel and one consume channel.
- * @type {Queue}
  */
-class Publisher {
+module.exports = class Publisher {
     /**
      * @param {Object} topology
      * @param {Object|String} section The queue configuration to assert, as a full configuration section object or just the name of the section within.
@@ -74,29 +74,11 @@ class Publisher {
         if (!options || !_.isBoolean(options.persistent))
             options = _.assign({}, options, { persistent: true });
 
-        _.forEach(TIME_OPTIONS, path => {
-            let val = _.get(options, path);
-            if (typeof val === 'string')
-                _.set(options, path, ms(val));
-        });
-
-        if (options.delay)
-            options = this._getAndVerifyDelayOptions(options);
-
-        return options;
+        return this._setAllMilliseconds(options);
     }
 
-    _getAndVerifyDelayOptions(options) {
-        if (!_.isNumber(options.delay))
-            throw new Error('options.delay must be a number');
-
-        if (options.delay < 0)
-            throw new Error('options.delay is negative, cannot travel to the past');
-
-        if (!_.get(this.topology, 'exchange.delayedMessages'))
-            throw new Error('to publish a delayed message please configure the exchange with delayedMessage');
-
-        return _.merge({}, _.omit(options, 'delay'), { headers: { 'x-delay': options.delay } });
+    _setAllMilliseconds(options){
+        return utility.setAllMilliseconds(options, TIME_OPTIONS);
     }
 
     _getRoutingKey(routingKey, channel) {
@@ -112,5 +94,3 @@ class Publisher {
         return '';
     }
 }
-
-module.exports = Publisher;

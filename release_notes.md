@@ -1,5 +1,8 @@
+### 4.1.0
+* support delayed requeue-to-tail in delayed exchanges
+
 ### 4.0.1
-* fix bug that broke requeue-to-tail for fanout and topic queues
+* fix bug that broke requeue-to-tail for fanout and topic exchanges
 
 # 4.0.0
 * added explicit method to add/remove topic-bindings to/from existing queues via methods on consume-channel

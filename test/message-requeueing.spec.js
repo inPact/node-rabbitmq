@@ -40,7 +40,7 @@ describe('requeueToTail', function () {
 
             await queue.publish({ the: 'entity' });
 
-            await Promise.delay(300);
+            await Promise.delay(100);
             received.length.should.equal(MANUAL_REQUEUE_COUNT_STOP_CONDITION);
         });
 
@@ -68,8 +68,45 @@ describe('requeueToTail', function () {
 
             await queue.publish({ the: 'entity' });
 
-            await Promise.delay(300);
+            await Promise.delay(100);
             received.length.should.equal(MAX_RETRIES);
+        });
+
+        it('should ack and requeue with delay', async function () {
+            const MAX_RETRIES = 3;
+            broker = new Broker({
+                url,
+                queues: {
+                    test: {
+                        name: 'test',
+                        exchange: {
+                            name: 'test-x'
+                        },
+                        delayed: true,
+                        requeueToTail: true,
+                        maxRetries: MAX_RETRIES
+                    }
+                }
+            });
+
+            let start;
+            let received = [];
+            let queue = broker.initQueue('test');
+
+            await queue.consume(async (message) => {
+                received.push({ message, delay: Date.now() - start })
+                start = Date.now();
+                throw new Error('requeue');
+            });
+
+            start = Date.now();
+            await queue.publish({ the: 'entity' }, { delay: 100 });
+
+            await Promise.delay(500);
+            received.length.should.equal(MAX_RETRIES);
+            received.forEach(entry => {
+                entry.delay.should.be.at.least(100);
+            })
         });
     });
 
@@ -104,7 +141,7 @@ describe('requeueToTail', function () {
 
             await broker.initQueue('test').publish({ the: 'entity' });
 
-            await Promise.delay(300);
+            await Promise.delay(100);
             queueOneReceived.length.should.equal(MAX_RETRIES);
             queueTwoReceived.length.should.equal(1);
         });
@@ -119,7 +156,7 @@ describe('requeueToTail', function () {
                     test: {
                         name: 'test',
                         exchange: {
-                            name: 'test',
+                            name: 'test-x',
                             type: 'topic'
                         },
                         requeueToTail: true,
@@ -140,9 +177,51 @@ describe('requeueToTail', function () {
             await queueAdapter.consume(message => queueTwoReceived.push(message), 'routes.#', { name: 'q2' });
             await queueAdapter.publishTo('routes.one', 'the entity');
 
-            await Promise.delay(300);
+            await Promise.delay(100);
             queueOneReceived.length.should.equal(MAX_RETRIES);
             queueTwoReceived.length.should.equal(1);
+        });
+
+        it('should ack and requeue with delay', async function () {
+            const MAX_RETRIES = 3;
+            broker = new Broker({
+                url,
+                queues: {
+                    test: {
+                        name: 'test',
+                        exchange: {
+                            name: 'test-x',
+                            type: 'topic'
+                        },
+                        delayed: true,
+                        requeueToTail: true,
+                        maxRetries: MAX_RETRIES
+                    }
+                }
+            });
+
+            let start;
+            let queueOneReceived = [];
+            let queueTwoReceived = [];
+
+            let queueAdapter = broker.initQueue('test');
+            await queueAdapter.consume(message => {
+                queueOneReceived.push({ message, delay: Date.now() - start });
+                throw new Error('requeue');
+            }, 'routes.one', { name: 'q1' });
+
+            await queueAdapter.consume(message => queueTwoReceived.push(message), 'routes.#', { name: 'q2' });
+
+            start = Date.now();
+            await queueAdapter.publishTo('routes.one', 'the entity', { delay: 100 });
+
+            await Promise.delay(500);
+            queueOneReceived.length.should.equal(MAX_RETRIES);
+            queueTwoReceived.length.should.equal(1);
+
+            queueOneReceived.forEach(entry => {
+                entry.delay.should.be.at.least(100);
+            });
         });
     });
 });
