@@ -1,0 +1,16 @@
+FROM rabbitmq:3.9.13-management
+
+# This is the running version in PROD, TODO: Upgrade prod:
+ARG DELAY_PLUGIN_VERSION=3.9.0
+
+RUN apt-get update \
+    && apt-get -y install --no-install-recommends ca-certificates vim curl wget \
+    && apt-get clean -y
+
+WORKDIR /opt/rabbitmq/plugins/
+
+RUN wget -q https://github.com/rabbitmq/rabbitmq-delayed-message-exchange/releases/download/${DELAY_PLUGIN_VERSION}/rabbitmq_delayed_message_exchange-${DELAY_PLUGIN_VERSION}.ez
+
+RUN rabbitmq-plugins enable rabbitmq_delayed_message_exchange
+
+RUN echo "\n## Shorten consumer timeout:\nconsumer_timeout = 120000\n" >> /etc/rabbitmq/conf.d/10-default-guest-user.conf

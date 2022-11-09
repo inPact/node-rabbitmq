@@ -17,6 +17,12 @@ class QueueAdapter {
     constructor(topology, { logger = console, channelManager } = {}) {
         this.publisher = new Publisher(...arguments);
         this.consumer = new Consumer(topology, { logger, channelManager, publisher: this.publisher });
+        if (!channelManager) throw new Error('Cannot start queue adapter without a Channel Manager');
+        this.channelEvents = channelManager.getChannelEvents();
+    }
+
+    getChannelEvents() {
+        return this.channelEvents;
     }
 
     /**

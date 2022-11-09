@@ -1,6 +1,12 @@
 const _ = require('lodash');
 const utils = require('@tabit/utils');
+const EventEmitter = require('events');
 const Retry = utils.Retry;
+
+const CHANNEL_EVENTS = {
+    CHANNEL_CLOSED: 'channel-closed',
+    CHANNEL_ERROR: 'channel-error',
+}
 
 class ChannelManager {
     /**
@@ -16,6 +22,7 @@ class ChannelManager {
         this.connectionManager = connectionManager;
         this.channels = { pub: null, sub: null };
         this.logger = logger;
+        this.eventEmitter = new EventEmitter();
     }
 
     async getPublishChannel() {
@@ -23,6 +30,10 @@ class ChannelManager {
             this.channels.pub = this._createChannel('pub');
 
         return this.channels.pub;
+    }
+
+    getChannelEvents() {
+        return this.eventEmitter;
     }
 
     /**
@@ -141,16 +152,20 @@ class ChannelManager {
         }
 
         channel.once('close', () => {
-            this.logger.warn(`Distributed queue: channel "${channel.getDescriptor()}" closed`);
+            const descriptor = channel.getDescriptor();
+            this.logger.warn(`Distributed queue: channel "${descriptor}" closed`);
             this._clearChannel(channel);
+            this.eventEmitter.emit(CHANNEL_EVENTS.CHANNEL_CLOSED, descriptor);
         });
 
         channel.on('error', e => {
+            const descriptor = channel.getDescriptor();
             let append = e.stackAtStateChange
                 ? '\r\n\tStack at state change: ' + e.stackAtStateChange
                 : '';
-            this.logger.error(`Distributed queue error in channel "${channel.getDescriptor()}": ` + utils.errorToString(e) + append);
+            this.logger.error(`Distributed queue error in channel "${descriptor}": ` + utils.errorToString(e) + append);
             this._clearChannel(channel);
+            this.eventEmitter.emit(CHANNEL_EVENTS.CHANNEL_ERROR, descriptor);
         });
     }
 }
