@@ -25,6 +25,10 @@ class QueueAdapter {
         return this.channelEvents;
     }
 
+    setHandleTimeout(timeoutMs) {
+        this.consumer.setHandleTimeout(timeoutMs);
+    }
+
     /**
      *
      * @param {Function} handler - a function that is called for each received message, accepting two parameters:

@@ -5,6 +5,8 @@ module.exports = async function consumeTimeout() {
     const testBroker = new RabbitMQBroker({
         url: `amqp://guest:guest@localhost/`,
         prefetch: 1,
+        onTimeoutRequeueToTail: true,
+        onTimeoutMaxRetries: 2,
         queues: {
             test: {
                 name: 'test-temp-consumer-timeout',
@@ -18,6 +20,8 @@ module.exports = async function consumeTimeout() {
     });
 
     const queueSection = testBroker.initQueue('test');
+
+    queueSection.setHandleTimeout(10 * 1000);
 
     const channelEvents = queueSection.getChannelEvents();
 

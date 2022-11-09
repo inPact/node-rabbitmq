@@ -3,6 +3,8 @@ const debug = require('debug')('tabit:infra:rabbit');
 const verbose = require('debug')('tabit:infra:rabbit:verbose');
 const utils = require('@tabit/utils');
 
+const DEFAULT_ACK_TIMEOUT_MS = 45 * 60 * 1000;
+
 /**
  * Encapsulates a distributed amqp queue with a single connection
  * and at most one publish channel and one consume channel.
@@ -22,9 +24,15 @@ class Consumer {
         this.topology = topology;
         this.exchange = _.get(topology, 'exchange', {});
         this.exchangeName = this.exchange.name || '';
+        this.handleTimeout = DEFAULT_ACK_TIMEOUT_MS;
 
         this.channelManager = channelManager;
         channelManager.connectionManager.on('closed', this._restartConsumers.bind(this));
+    }
+
+    setHandleTimeout(timeoutMs) {
+        if (!timeoutMs || !_.isNumber(timeoutMs)) throw new Error(`Bad handler timeout: ${timeoutMs}`);
+        this.handleTimeout = timeoutMs;
     }
 
     /**
@@ -71,11 +79,22 @@ class Consumer {
                 debug(`received message on queue "${queue}", sending to handler...`);
 
                 try {
-                    await handler(message.content.toString(), message.properties, message.fields, message);
+
+                    // Run handler with timeout:
+                    await Promise.race([
+                        handler(message.content.toString(), message.properties, message.fields, message),
+                        new Promise(r => setTimeout(r, this.handleTimeout)).then(() => {
+                            const error = new Error(`Tabit-Rabbit timeout of ${this.handleTimeout}ms for handler to finish, is over`);
+                            error.isTimeOutError = true;
+                            return Promise.reject(error);
+                        }),
+                    ]);
+
                     if (!options.noAck) {
                         verbose(`acking 1 to queue "${queue}"`);
                         return channel.ack(message);
                     }
+
                 } catch (e) {
                     try {
                         let deliveryAttempts = message.properties.headers && message.properties.headers['x-delivery-attempts'] || 1;
@@ -87,8 +106,20 @@ class Consumer {
                         this.logger.warn(`Distributed queue: delivery attempt #${deliveryAttempts} to queue "${queue}" ` +
                                          `failed${append}`);
 
-                        if (consumeOptions.requeueToTail) {
-                            if (!consumeOptions.maxRetries || deliveryAttempts < consumeOptions.maxRetries) {
+                        // Note from Nati:
+                        // To be backwards compatible, if normal requeue is configured is always takes precedence,
+                        // even if error is a timeout:
+                        const requeueToTail = (
+                            consumeOptions.requeueToTail ||
+                            (e.isTimeOutError && consumeOptions.onTimeoutRequeueToTail)
+                        );
+                        const maxRetries = (
+                            consumeOptions.maxRetries ||
+                            (e.isTimeOutError && consumeOptions.onTimeoutMaxRetries)
+                        );
+
+                        if (requeueToTail) {
+                            if (!maxRetries || deliveryAttempts < maxRetries) {
                                 message.properties.headers = _.omit(message.properties.headers, 'x-death');
                                 let properties = _.merge(message.properties, {
                                     headers: { 'x-delivery-attempts': ++deliveryAttempts }
