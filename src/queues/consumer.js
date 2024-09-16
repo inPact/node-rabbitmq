@@ -78,12 +78,16 @@ class Consumer {
 
                 debug(`received message on queue "${queue}", sending to handler...`);
 
+                let timeoutRef;
+
                 try {
 
                     // Run handler with timeout:
                     await Promise.race([
-                        handler(message.content.toString(), message.properties, message.fields, message),
-                        new Promise(r => setTimeout(r, this.handleTimeout)).then(() => {
+                        handler(message.content.toString(), message.properties, message.fields, message).finally(() => {
+                            clearTimeout(timeoutRef);
+                        }),
+                        new Promise(r => timeoutRef = setTimeout(r, this.handleTimeout)).then(() => {
                             const error = new Error(`Tabit-Rabbit timeout of ${this.handleTimeout}ms for handler to finish, is over`);
                             error.isTimeOutError = true;
                             return Promise.reject(error);
