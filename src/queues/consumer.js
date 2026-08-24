@@ -84,9 +84,9 @@ class Consumer {
 
                     // Run handler with timeout:
                     await Promise.race([
-                        (async () => handler(message.content.toString(), message.properties, message.fields, message).finally(() => {
+                        (async () => handler(message.content.toString(), message.properties, message.fields, message))().finally(() => {
                             clearTimeout(timeoutRef);
-                        }))(),
+                        }),
                         new Promise(r => timeoutRef = setTimeout(r, this.handleTimeout)).then(() => {
                             const error = new Error(`Tabit-Rabbit timeout of ${this.handleTimeout}ms for handler to finish, is over`);
                             error.isTimeOutError = true;
